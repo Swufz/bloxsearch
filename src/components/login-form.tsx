@@ -2,21 +2,17 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, Mail } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
   const searchParams = useSearchParams();
   const callbackError = searchParams.get("error");
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
   const [error, setError] = useState(callbackError ?? "");
   const [loading, setLoading] = useState(false);
 
-  async function sendMagicLink(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setMessage("");
+  async function continueWithGoogle() {
     setError("");
     setLoading(true);
     try {
@@ -26,21 +22,22 @@ export function LoginForm() {
           ? window.location.origin
           : process.env.NEXT_PUBLIC_SITE_URL;
       if (!origin) throw new Error("Site URL is not configured.");
-      const redirectTo = `${origin}/auth/callback`;
-      const { error: signInError } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: redirectTo },
+      const { error: signInError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${origin}/auth/callback`,
+        },
       });
       if (signInError) throw signInError;
-      setMessage("Check your email for the login link.");
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Could not send magic link. Check your Supabase URL and allowed redirect URLs.",
+          : "Could not start Google sign-in. Check your Supabase URL and Google provider settings.",
       );
-    } finally {
       setLoading(false);
+    } finally {
+      if (typeof window === "undefined") setLoading(false);
     }
   }
 
@@ -50,31 +47,13 @@ export function LoginForm() {
       <p className="mt-2 text-sm text-slate-400">
         Sign in to save games, ideas, and research notes.
       </p>
-      <form onSubmit={sendMagicLink} className="mt-7 space-y-4">
-        <label className="block text-xs font-medium text-slate-300">
-          Email
-          <input
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-            type="email"
-            placeholder="you@example.com"
-            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm outline-none focus:border-sky-400"
-          />
-        </label>
-        <button
-          disabled={loading}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-sky-400 px-4 py-2.5 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <Mail size={16} />
-          {loading ? "Sending..." : "Send magic link"}
-        </button>
-      </form>
-      {message && (
-        <div className="mt-4 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-200">
-          {message}
-        </div>
-      )}
+      <button
+        onClick={continueWithGoogle}
+        disabled={loading}
+        className="mt-7 flex w-full items-center justify-center gap-2 rounded-lg bg-sky-400 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {loading ? "Redirecting..." : "Continue with Google"}
+      </button>
       {error && (
         <div className="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-200">
           {error}
