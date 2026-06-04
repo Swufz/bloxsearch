@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import type { Game } from "@/lib/types";
 import { GameCard } from "./game-card";
@@ -9,13 +9,12 @@ import { daysAgo } from "@/lib/utils";
 export function OutlierExplorer({
   initialGames,
   signedIn = false,
-  initialSavedGameUniverseIds = [],
 }: {
   initialGames: Game[];
   signedIn?: boolean;
-  initialSavedGameUniverseIds?: string[];
 }) {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [minActive, setMinActive] = useState("");
   const [maxActive, setMaxActive] = useState("");
   const [minVisits, setMinVisits] = useState("");
@@ -25,11 +24,22 @@ export function OutlierExplorer({
   const [niche, setNiche] = useState("");
   const [monetization, setMonetization] = useState("");
   const [sort, setSort] = useState("opportunity");
-  const niches = [...new Set(initialGames.map((game) => game.niche))].sort();
-  const games = initialGames
-    .filter(
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedSearch(search), 180);
+    return () => window.clearTimeout(timeout);
+  }, [search]);
+
+  const niches = useMemo(
+    () => [...new Set(initialGames.map((game) => game.niche))].sort(),
+    [initialGames],
+  );
+
+  const games = useMemo(() => {
+    const searchText = debouncedSearch.toLowerCase();
+    const filtered = initialGames.filter(
       (game) =>
-        game.title.toLowerCase().includes(search.toLowerCase()) &&
+        game.title.toLowerCase().includes(searchText) &&
         (!minActive || game.activePlayers >= Number(minActive)) &&
         (!maxActive || game.activePlayers <= Number(maxActive)) &&
         (!minVisits || game.visits >= Number(minVisits)) &&
@@ -40,8 +50,8 @@ export function OutlierExplorer({
           daysAgo(game.updatedAtRoblox) <= Number(updatedWithin)) &&
         (!niche || game.niche === niche) &&
         (!monetization || game.monetizationTags.includes(monetization)),
-    )
-    .sort((a, b) =>
+    );
+    return [...filtered].sort((a, b) =>
       sort === "active"
         ? b.activePlayers - a.activePlayers
         : sort === "visits"
@@ -54,9 +64,22 @@ export function OutlierExplorer({
                 ? +new Date(b.updatedAtRoblox) - +new Date(a.updatedAtRoblox)
                 : b.score.opportunity - a.score.opportunity,
     );
+  }, [
+    initialGames,
+    debouncedSearch,
+    minActive,
+    maxActive,
+    minVisits,
+    minLikes,
+    createdWithin,
+    updatedWithin,
+    niche,
+    monetization,
+    sort,
+  ]);
+
   const inputClass =
     "rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm outline-none focus:border-sky-400";
-  const savedSet = new Set(initialSavedGameUniverseIds);
   return (
     <>
       <div className="card p-4">
@@ -169,12 +192,7 @@ export function OutlierExplorer({
       {games.length ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {games.map((game) => (
-            <GameCard
-              key={game.id}
-              game={game}
-              signedIn={signedIn}
-              initiallySaved={savedSet.has(game.robloxUniverseId)}
-            />
+            <GameCard key={game.id} game={game} signedIn={signedIn} />
           ))}
         </div>
       ) : (

@@ -9,35 +9,39 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { GameCard } from "@/components/game-card";
+import { SavedGamesProvider } from "@/components/saved-games-provider";
 import { StatCard } from "@/components/stat-card";
 import { getGames } from "@/lib/data";
 import { formatNumber } from "@/lib/utils";
 import { isMockMode } from "@/lib/mode";
 import { ensureProfile, getCurrentUser } from "@/lib/auth";
-import { getSavedGameUniverseIds } from "@/lib/saved-data";
 
 export default async function DashboardPage() {
+  if (process.env.NODE_ENV === "development") console.time("dashboard load");
   const user = await getCurrentUser();
   if (user) await ensureProfile(user);
-  const savedUniverseIds = new Set(await getSavedGameUniverseIds(user?.id));
   const games = getGames();
   const avg = Math.round(
     games.reduce((sum, game) => sum + game.score.opportunity, 0) / games.length,
   );
-  const niches = [...new Set(games.map((g) => g.niche))]
-    .map((niche) => ({
+  const nicheTotals = new Map<string, { count: number; total: number }>();
+  for (const game of games) {
+    const current = nicheTotals.get(game.niche) ?? { count: 0, total: 0 };
+    nicheTotals.set(game.niche, {
+      count: current.count + 1,
+      total: current.total + game.score.opportunity,
+    });
+  }
+  const niches = [...nicheTotals.entries()]
+    .map(([niche, value]) => ({
       niche,
-      count: games.filter((g) => g.niche === niche).length,
-      avg: Math.round(
-        games
-          .filter((g) => g.niche === niche)
-          .reduce((s, g) => s + g.score.opportunity, 0) /
-          games.filter((g) => g.niche === niche).length,
-      ),
+      count: value.count,
+      avg: Math.round(value.total / value.count),
     }))
     .sort((a, b) => b.avg - a.avg)
     .slice(0, 5);
   const demoMode = isMockMode();
+  if (process.env.NODE_ENV === "development") console.timeEnd("dashboard load");
   return (
     <AppShell
       title="Dashboard"
@@ -86,14 +90,11 @@ export default async function DashboardPage() {
         </Link>
       </div>
       <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        {games.slice(0, 5).map((game) => (
-          <GameCard
-            key={game.id}
-            game={game}
-            signedIn={Boolean(user)}
-            initiallySaved={savedUniverseIds.has(game.robloxUniverseId)}
-          />
-        ))}
+        <SavedGamesProvider signedIn={Boolean(user)}>
+          {games.slice(0, 5).map((game) => (
+            <GameCard key={game.id} game={game} signedIn={Boolean(user)} />
+          ))}
+        </SavedGamesProvider>
       </div>
       <div className="mt-8 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
         <div className="card p-5">

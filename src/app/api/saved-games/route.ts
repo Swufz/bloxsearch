@@ -3,7 +3,6 @@ import { requireUser } from "@/lib/auth";
 import {
   ensureGameRecord,
   getMissingSaveEnvVars,
-  getSavedGameUniverseIds,
   getUserSavedGames,
 } from "@/lib/saved-data";
 
@@ -14,9 +13,12 @@ export async function GET() {
       { error: "Sign in to save games and ideas." },
       { status: 401 },
     );
+  const savedGames = await getUserSavedGames(auth.user.id);
   return NextResponse.json({
-    data: await getUserSavedGames(auth.user.id),
-    savedUniverseIds: await getSavedGameUniverseIds(auth.user.id),
+    data: savedGames,
+    savedUniverseIds: savedGames
+      .map((game) => game.robloxUniverseId)
+      .filter(Boolean),
   });
 }
 

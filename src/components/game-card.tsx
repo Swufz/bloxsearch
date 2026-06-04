@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { memo } from "react";
 import {
   CalendarDays,
   CircleUserRound,
@@ -12,7 +13,7 @@ import { daysAgo, formatNumber } from "@/lib/utils";
 import { ScoreBadge } from "./score-badge";
 import { SaveGameButton } from "./save-game-button";
 
-export function GameCard({
+export const GameCard = memo(function GameCard({
   game,
   signedIn = false,
   initiallySaved = false,
@@ -85,6 +86,7 @@ export function GameCard({
           </Link>
           <SaveGameButton
             gameId={game.id}
+            savedKey={game.robloxUniverseId}
             signedIn={signedIn}
             initiallySaved={initiallySaved}
           />
@@ -92,4 +94,4 @@ export function GameCard({
       </div>
     </article>
   );
-}
+});
