@@ -8,7 +8,6 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/dashboard";
   const callbackError = searchParams.get("error");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -22,7 +21,12 @@ export function LoginForm() {
     setLoading(true);
     try {
       const supabase = createSupabaseBrowserClient();
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+      const origin =
+        typeof window !== "undefined"
+          ? window.location.origin
+          : process.env.NEXT_PUBLIC_SITE_URL;
+      if (!origin) throw new Error("Site URL is not configured.");
+      const redirectTo = `${origin}/auth/callback`;
       const { error: signInError } = await supabase.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: redirectTo },
@@ -31,7 +35,9 @@ export function LoginForm() {
       setMessage("Check your email for the login link.");
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Could not send magic link.",
+        err instanceof Error
+          ? err.message
+          : "Could not send magic link. Check your Supabase URL and allowed redirect URLs.",
       );
     } finally {
       setLoading(false);
