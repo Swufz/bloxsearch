@@ -14,7 +14,7 @@ import { OpportunityBreakdown } from "@/components/opportunity-breakdown";
 import { SaveGameButton } from "@/components/save-game-button";
 import { SavedGamesProvider } from "@/components/saved-games-provider";
 import { ScoreBadge } from "@/components/score-badge";
-import { getGame, getGames } from "@/lib/data";
+import { getDisplayGame, getDisplayGames } from "@/lib/data";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { isMockMode } from "@/lib/mode";
 import { ensureProfile, getCurrentUser } from "@/lib/auth";
@@ -27,10 +27,10 @@ export default async function GamePage({
   const { id } = await params;
   const user = await getCurrentUser();
   if (user) await ensureProfile(user);
-  const game = getGame(id);
+  const game = await getDisplayGame(id);
   if (!game) notFound();
   const demoMode = isMockMode();
-  const similar = getGames()
+  const similar = (await getDisplayGames())
     .filter((item) => item.id !== game.id && item.niche === game.niche)
     .slice(0, 3);
   return (

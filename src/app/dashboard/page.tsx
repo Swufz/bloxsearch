@@ -11,7 +11,7 @@ import { AppShell } from "@/components/app-shell";
 import { GameCard } from "@/components/game-card";
 import { SavedGamesProvider } from "@/components/saved-games-provider";
 import { StatCard } from "@/components/stat-card";
-import { getGames } from "@/lib/data";
+import { getDisplayGames } from "@/lib/data";
 import { formatNumber } from "@/lib/utils";
 import { isMockMode } from "@/lib/mode";
 import { ensureProfile, getCurrentUser } from "@/lib/auth";
@@ -20,7 +20,7 @@ export default async function DashboardPage() {
   if (process.env.NODE_ENV === "development") console.time("dashboard load");
   const user = await getCurrentUser();
   if (user) await ensureProfile(user);
-  const games = getGames();
+  const games = await getDisplayGames();
   const avg = Math.round(
     games.reduce((sum, game) => sum + game.score.opportunity, 0) / games.length,
   );

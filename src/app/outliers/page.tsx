@@ -1,7 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { OutlierExplorer } from "@/components/outlier-explorer";
 import { SavedGamesProvider } from "@/components/saved-games-provider";
-import { getGames } from "@/lib/data";
+import { getDisplayGames } from "@/lib/data";
 import { isMockMode } from "@/lib/mode";
 import { ensureProfile, getCurrentUser } from "@/lib/auth";
 
@@ -11,7 +11,7 @@ export default async function OutliersPage() {
   const user = await getCurrentUser();
   if (user) await ensureProfile(user);
   const demoMode = isMockMode();
-  const games = getGames();
+  const games = await getDisplayGames();
   if (process.env.NODE_ENV === "development")
     console.timeEnd("outliers data load");
   return (

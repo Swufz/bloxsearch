@@ -1,23 +1,222 @@
 import { mockGames } from "./mock-data";
+import { generateIdeas } from "./idea-generator";
+import { scoreGame } from "./scoring";
+import {
+  createSupabaseServerClient,
+  isSupabaseConfigured,
+} from "./supabase/server";
 import type { CollectionLog, Game, SavedIdea } from "./types";
 
-export const getGames = (): Game[] => [...mockGames].sort((a, b) => b.score.opportunity - a.score.opportunity);
-export const getGame = (id: string): Game | undefined => mockGames.find((game) => game.id === id || game.robloxUniverseId === id);
+export const getGames = (): Game[] =>
+  [...mockGames]
+    .map((game) => ({ ...game, dataSource: "mock" as const }))
+    .sort((a, b) => b.score.opportunity - a.score.opportunity);
+export const getGame = (id: string): Game | undefined =>
+  getGames().find((game) => game.id === id || game.robloxUniverseId === id);
+
+type DatabaseGameRow = {
+  id: string;
+  roblox_universe_id: string | null;
+  roblox_place_id: string | null;
+  title: string;
+  description: string | null;
+  creator_name: string | null;
+  creator_id: string | null;
+  creator_type: string | null;
+  thumbnail_url: string | null;
+  game_url: string | null;
+  active_players: number | null;
+  visits: number | null;
+  favorites: number | null;
+  upvotes: number | null;
+  downvotes: number | null;
+  like_ratio: number | null;
+  max_players: number | null;
+  created_at_roblox: string | null;
+  updated_at_roblox: string | null;
+  first_seen_at: string | null;
+  last_fetched_at: string | null;
+  tags: string[] | null;
+  niche: string | null;
+  mechanics: string[] | null;
+  monetization_tags: string[] | null;
+  game_scores?:
+    | {
+        opportunity_score: number | null;
+        demand_score: number | null;
+        growth_score: number | null;
+        competition_score: number | null;
+        freshness_score: number | null;
+        buildability_score: number | null;
+        monetization_score: number | null;
+        outlier_reason: string | null;
+        risks: string[] | null;
+        generated_ideas: unknown;
+      }
+    | Array<{
+        opportunity_score: number | null;
+        demand_score: number | null;
+        growth_score: number | null;
+        competition_score: number | null;
+        freshness_score: number | null;
+        buildability_score: number | null;
+        monetization_score: number | null;
+        outlier_reason: string | null;
+        risks: string[] | null;
+        generated_ideas: unknown;
+      }>
+    | null;
+};
+
+export function mapDatabaseGame(row: DatabaseGameRow): Game {
+  const scoreRow = Array.isArray(row.game_scores)
+    ? row.game_scores[0]
+    : row.game_scores;
+  const base = {
+    id: row.id,
+    databaseId: row.id,
+    dataSource: "real" as const,
+    robloxUniverseId: row.roblox_universe_id ?? "",
+    robloxPlaceId: row.roblox_place_id ?? "",
+    title: row.title,
+    description: row.description ?? "",
+    creatorName: row.creator_name ?? "Unknown creator",
+    creatorId: row.creator_id ?? "",
+    creatorType: row.creator_type ?? "",
+    thumbnailUrl:
+      row.thumbnail_url ??
+      `https://placehold.co/720x405/111827/38BDF8?text=${encodeURIComponent(row.title)}`,
+    gameUrl:
+      row.game_url ??
+      (row.roblox_place_id
+        ? `https://www.roblox.com/games/${row.roblox_place_id}`
+        : "https://www.roblox.com/discover"),
+    activePlayers: row.active_players ?? 0,
+    visits: Number(row.visits ?? 0),
+    favorites: Number(row.favorites ?? 0),
+    upvotes: Number(row.upvotes ?? 0),
+    downvotes: Number(row.downvotes ?? 0),
+    likeRatio: Number(row.like_ratio ?? 0),
+    maxPlayers: row.max_players ?? 0,
+    createdAtRoblox: row.created_at_roblox ?? new Date().toISOString(),
+    updatedAtRoblox:
+      row.updated_at_roblox ??
+      row.created_at_roblox ??
+      new Date().toISOString(),
+    firstSeenAt: row.first_seen_at ?? new Date().toISOString(),
+    lastFetchedAt: row.last_fetched_at ?? new Date().toISOString(),
+    tags: row.tags?.length ? row.tags : ["Roblox"],
+    niche: row.niche ?? "Roblox",
+    mechanics: row.mechanics?.length ? row.mechanics : ["progression"],
+    monetizationTags: row.monetization_tags?.length
+      ? row.monetization_tags
+      : ["cosmetics"],
+  };
+  const fallbackScore = scoreGame(base);
+  const ideas = Array.isArray(scoreRow?.generated_ideas)
+    ? scoreRow.generated_ideas
+    : generateIdeas(base);
+  return {
+    ...base,
+    score: {
+      opportunity: scoreRow?.opportunity_score ?? fallbackScore.opportunity,
+      demand: scoreRow?.demand_score ?? fallbackScore.demand,
+      growth: scoreRow?.growth_score ?? fallbackScore.growth,
+      competition: scoreRow?.competition_score ?? fallbackScore.competition,
+      freshness: scoreRow?.freshness_score ?? fallbackScore.freshness,
+      buildability: scoreRow?.buildability_score ?? fallbackScore.buildability,
+      monetization: scoreRow?.monetization_score ?? fallbackScore.monetization,
+      outlierReason: scoreRow?.outlier_reason ?? fallbackScore.outlierReason,
+      risks: scoreRow?.risks ?? fallbackScore.risks,
+      growthEstimated: true,
+    },
+    ideas: ideas as Game["ideas"],
+  };
+}
+
+export async function getImportedGames(): Promise<Game[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("games")
+    .select(
+      "*, game_scores(opportunity_score, demand_score, growth_score, competition_score, freshness_score, buildability_score, monetization_score, outlier_reason, risks, generated_ideas)",
+    )
+    .order("last_fetched_at", { ascending: false });
+  if (error) {
+    console.error("[games] Failed to fetch imported games", { error });
+    return [];
+  }
+  return (data ?? []).map((row) =>
+    mapDatabaseGame(row as unknown as DatabaseGameRow),
+  );
+}
+
+export async function getDisplayGames(): Promise<Game[]> {
+  const importedGames = await getImportedGames();
+  const importedUniverseIds = new Set(
+    importedGames.map((game) => game.robloxUniverseId).filter(Boolean),
+  );
+  return [
+    ...importedGames,
+    ...getGames().filter(
+      (game) => !importedUniverseIds.has(game.robloxUniverseId),
+    ),
+  ].sort((a, b) => b.score.opportunity - a.score.opportunity);
+}
+
+export async function getDisplayGame(id: string): Promise<Game | undefined> {
+  const mock = getGame(id);
+  if (mock) return mock;
+  if (!isSupabaseConfigured()) return undefined;
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("games")
+    .select(
+      "*, game_scores(opportunity_score, demand_score, growth_score, competition_score, freshness_score, buildability_score, monetization_score, outlier_reason, risks, generated_ideas)",
+    )
+    .or(`id.eq.${id},roblox_universe_id.eq.${id},roblox_place_id.eq.${id}`)
+    .maybeSingle();
+  return data ? mapDatabaseGame(data as unknown as DatabaseGameRow) : undefined;
+}
 
 export const getSavedIdeas = (): SavedIdea[] =>
-  getGames().slice(0, 4).map((game, index) => ({
-    ...game.ideas[0],
-    id: `idea-${index + 1}`,
-    gameId: game.id,
-    inspiredBy: game.title,
-    niche: game.niche,
-    opportunityScore: game.score.opportunity,
-    notes: index === 0 ? "Explore a one-week prototype focused on the core loop." : "",
-    createdAt: new Date(Date.now() - index * 86_400_000).toISOString(),
-  }));
+  getGames()
+    .slice(0, 4)
+    .map((game, index) => ({
+      ...game.ideas[0],
+      id: `idea-${index + 1}`,
+      gameId: game.id,
+      inspiredBy: game.title,
+      niche: game.niche,
+      opportunityScore: game.score.opportunity,
+      notes:
+        index === 0
+          ? "Explore a one-week prototype focused on the core loop."
+          : "",
+      createdAt: new Date(Date.now() - index * 86_400_000).toISOString(),
+    }));
 
 export const getCollectionLogs = (): CollectionLog[] => [
-  { id: "log-1", action: "score_games", status: "success", message: "Recalculated opportunity scores for 25 games.", createdAt: new Date(Date.now() - 22 * 60_000).toISOString() },
-  { id: "log-2", action: "seed_mock_data", status: "success", message: "Mock dataset is ready.", createdAt: new Date(Date.now() - 2 * 3_600_000).toISOString() },
-  { id: "log-3", action: "fetch_game", status: "info", message: "Mock mode returned normalized game data.", createdAt: new Date(Date.now() - 5 * 3_600_000).toISOString() },
+  {
+    id: "log-1",
+    action: "score_games",
+    status: "success",
+    message: "Recalculated opportunity scores for 25 games.",
+    createdAt: new Date(Date.now() - 22 * 60_000).toISOString(),
+  },
+  {
+    id: "log-2",
+    action: "seed_mock_data",
+    status: "success",
+    message: "Mock dataset is ready.",
+    createdAt: new Date(Date.now() - 2 * 3_600_000).toISOString(),
+  },
+  {
+    id: "log-3",
+    action: "fetch_game",
+    status: "info",
+    message: "Mock mode returned normalized game data.",
+    createdAt: new Date(Date.now() - 5 * 3_600_000).toISOString(),
+  },
 ];

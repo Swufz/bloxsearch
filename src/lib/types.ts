@@ -24,6 +24,8 @@ export type GeneratedIdea = {
 
 export type Game = {
   id: string;
+  databaseId?: string;
+  dataSource?: "mock" | "real";
   robloxUniverseId: string;
   robloxPlaceId: string;
   title: string;

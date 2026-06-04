@@ -137,6 +137,31 @@ export async function ensureGameRecord(
   gameId: string,
 ): Promise<{ databaseId: string; game: Game } | null> {
   const game = getGame(gameId);
+  const uuidLike =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      gameId,
+    );
+  if (!game && uuidLike) {
+    if (
+      !process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      !process.env.NEXT_PUBLIC_SUPABASE_URL
+    )
+      return null;
+    const admin = createSupabaseAdminClient();
+    const { data, error } = await admin
+      .from("games")
+      .select(
+        "*, game_scores(opportunity_score, demand_score, growth_score, competition_score, freshness_score, buildability_score, monetization_score, outlier_reason, risks, generated_ideas)",
+      )
+      .eq("id", gameId)
+      .maybeSingle();
+    if (error || !data) {
+      console.error("[saved-games] Real game id not found", { gameId, error });
+      return null;
+    }
+    const { mapDatabaseGame } = await import("./data");
+    return { databaseId: gameId, game: mapDatabaseGame(data) };
+  }
   if (!game) {
     console.error("[saved-games] Unknown game id", { gameId });
     return null;

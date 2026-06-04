@@ -40,6 +40,13 @@ export const GameCard = memo(function GameCard({
       </div>
       <div className="p-4">
         <div className="mb-3">
+          <span
+            className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${game.dataSource === "real" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-slate-700 bg-slate-800 text-slate-300"}`}
+          >
+            {game.dataSource === "real" ? "Real Roblox Data" : "Demo Data"}
+          </span>
+        </div>
+        <div className="mb-3">
           <h3 className="truncate font-semibold">{game.title}</h3>
           <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
             <CircleUserRound size={13} />

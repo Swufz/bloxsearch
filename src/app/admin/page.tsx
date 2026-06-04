@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { ImportRobloxGameForm } from "@/components/import-roblox-game-form";
 import { getCurrentUser } from "@/lib/auth";
 import { getCollectionLogs, getGames } from "@/lib/data";
 import { isMockMode } from "@/lib/mode";
@@ -16,8 +17,12 @@ export default async function AdminPage() {
   const logs = getCollectionLogs();
   const user = await getCurrentUser();
   const mockMode = isMockMode();
-  const admins = (process.env.ADMIN_EMAILS ?? "").split(",").map((email) => email.trim().toLowerCase()).filter(Boolean);
-  if (!mockMode && !admins.includes(user?.email?.toLowerCase() ?? "")) redirect("/dashboard");
+  const admins = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+  if (!mockMode && !admins.includes(user?.email?.toLowerCase() ?? ""))
+    redirect("/dashboard");
   return (
     <AppShell
       title="Admin & Data Tools"
@@ -77,6 +82,7 @@ export default async function AdminPage() {
                 </button>
               </div>
             </div>
+            <ImportRobloxGameForm />
             <button className="flex w-full items-center gap-2 rounded-lg border border-red-500/20 px-4 py-3 text-left text-sm text-red-300 hover:bg-red-500/5">
               <Trash2 size={15} />
               Clear mock data
