@@ -1,0 +1,7 @@
+import Link from "next/link";
+import { ArrowRight, Mail } from "lucide-react";
+import { Logo } from "@/components/logo";
+
+export default function LoginPage() {
+  return <main className="grid-bg grid min-h-screen place-items-center p-5"><div className="w-full max-w-md"><div className="mb-8 flex justify-center"><Logo /></div><div className="card panel-glow p-7"><h1 className="text-2xl font-bold">Welcome back</h1><p className="mt-2 text-sm text-slate-400">Sign in to save games, ideas, and research notes.</p><form className="mt-7 space-y-4"><label className="block text-xs font-medium text-slate-300">Email<input type="email" placeholder="you@example.com" className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm outline-none focus:border-sky-400" /></label><button className="flex w-full items-center justify-center gap-2 rounded-lg bg-sky-400 px-4 py-2.5 text-sm font-semibold text-slate-950"><Mail size={16} />Send magic link</button></form><div className="my-5 flex items-center gap-3 text-[11px] text-slate-600"><span className="h-px flex-1 bg-slate-800" />or<span className="h-px flex-1 bg-slate-800" /></div><Link href="/dashboard" className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-200 hover:bg-slate-800">Continue to demo <ArrowRight size={15} /></Link><p className="mt-5 text-center text-[11px] text-slate-500">Supabase auth activates when environment variables are configured.</p></div></div></main>;
+}
