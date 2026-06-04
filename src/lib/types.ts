@@ -16,10 +16,15 @@ export type GeneratedIdea = {
   concept: string;
   coreLoop: string;
   whyItCouldWork: string;
+  howPlayersPlay: string;
+  differentFromOriginal: string;
   difficulty: "Easy" | "Medium" | "Hard";
   monetization: string[];
   avoidCloning: string;
   buildScope: string;
+  potentialScore: number;
+  potentialReason: string;
+  risk: string;
 };
 
 export type Game = {

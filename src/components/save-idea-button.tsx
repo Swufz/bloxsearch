@@ -41,7 +41,8 @@ export function SaveIdeaButton({
           niche,
           difficulty: idea.difficulty,
           monetizationOptions: idea.monetization,
-          opportunityScore,
+          opportunityScore: idea.potentialScore ?? opportunityScore,
+          notes: idea.potentialReason,
         }),
       });
       const payload = (await response.json().catch(() => ({}))) as {

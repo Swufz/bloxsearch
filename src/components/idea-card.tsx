@@ -17,6 +17,15 @@ export function IdeaCard({
   opportunityScore?: number;
   signedIn?: boolean;
 }) {
+  const potentialScore = idea.potentialScore ?? opportunityScore;
+  const potentialReason =
+    idea.potentialReason ??
+    "This score reflects the source game's opportunity signal and how buildable the direction appears.";
+  const howPlayersPlay = idea.howPlayersPlay ?? idea.coreLoop;
+  const differentFromOriginal =
+    idea.differentFromOriginal ??
+    "Change the progression, theme, layout, UI, name, and economy before prototyping.";
+
   return (
     <div className="card p-5">
       <div className="flex items-start justify-between gap-3">
@@ -27,19 +36,38 @@ export function IdeaCard({
           </span>
           <h3 className="font-semibold">{idea.title}</h3>
         </div>
-        <span className="rounded-full border border-slate-700 px-2.5 py-1 text-[11px] text-slate-300">
-          {idea.difficulty}
-        </span>
+        <div className="flex flex-col items-end gap-2">
+          <span className="rounded-full border border-slate-700 px-2.5 py-1 text-[11px] text-slate-300">
+            {idea.difficulty}
+          </span>
+          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200">
+            Potential {Math.round(potentialScore)}
+          </span>
+        </div>
       </div>
       <p className="mt-3 text-sm leading-6 text-slate-400">{idea.concept}</p>
       <div className="mt-4 space-y-3 text-xs text-slate-400">
         <p>
-          <strong className="text-slate-200">Core loop:</strong> {idea.coreLoop}
+          <strong className="text-slate-200">How players play:</strong>{" "}
+          {howPlayersPlay}
         </p>
         <p>
           <strong className="text-slate-200">Why it could work:</strong>{" "}
           {idea.whyItCouldWork}
         </p>
+        <p>
+          <strong className="text-slate-200">What makes it different:</strong>{" "}
+          {differentFromOriginal}
+        </p>
+        <p>
+          <strong className="text-slate-200">Why this score?</strong>{" "}
+          {potentialReason}
+        </p>
+        {idea.risk && (
+          <p>
+            <strong className="text-slate-200">Risk:</strong> {idea.risk}
+          </p>
+        )}
         <p>
           <strong className="text-slate-200">Scope:</strong> {idea.buildScope}
         </p>

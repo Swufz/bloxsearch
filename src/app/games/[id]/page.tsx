@@ -4,6 +4,8 @@ import {
   CalendarDays,
   ExternalLink,
   Heart,
+  ThumbsDown,
+  ThumbsUp,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -73,11 +75,13 @@ export default async function GamePage({
               <ScoreBadge score={game.score.opportunity} large />
             </div>
           </div>
-          <div className="grid gap-4 border-t border-slate-800 p-5 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-4 border-t border-slate-800 p-5 sm:grid-cols-2 lg:grid-cols-7">
             {[
               [Users, "Active players", formatNumber(game.activePlayers)],
               [TrendingUp, "Visits", formatNumber(game.visits)],
               [Heart, "Like ratio", `${game.likeRatio}%`],
+              [ThumbsUp, "Upvotes", formatNumber(game.upvotes)],
+              [ThumbsDown, "Downvotes", formatNumber(game.downvotes)],
               [CalendarDays, "Created", formatDate(game.createdAtRoblox)],
               [CalendarDays, "Last updated", formatDate(game.updatedAtRoblox)],
             ].map(([Icon, label, value]) => {

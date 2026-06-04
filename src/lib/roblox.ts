@@ -61,6 +61,32 @@ export async function fetchRobloxGameByUniverseId(
   return raw.data[0];
 }
 
+export type RobloxVoteData = {
+  upVotes: number;
+  downVotes: number;
+};
+
+export async function fetchRobloxGameVotes(
+  universeId: string,
+): Promise<RobloxVoteData | null> {
+  try {
+    const raw = (await safeFetchWithRetry(
+      `https://games.roblox.com/v1/games/votes?universeIds=${encodeURIComponent(universeId)}`,
+    )) as {
+      data?: Array<{ id?: number | string; upVotes?: number; downVotes?: number }>;
+    };
+    const votes = raw.data?.find((item) => String(item.id) === universeId) ?? raw.data?.[0];
+    if (!votes) return null;
+    return {
+      upVotes: Number(votes.upVotes ?? 0),
+      downVotes: Number(votes.downVotes ?? 0),
+    };
+  } catch (error) {
+    console.error("[roblox] Failed to fetch game votes", { universeId, error });
+    return null;
+  }
+}
+
 export async function fetchRobloxGameIcon(
   universeId: string,
 ): Promise<string | null> {
@@ -108,6 +134,7 @@ function inferNicheAndMechanics(title: string, description: string) {
 export function normalizeRobloxGameData(
   raw: Record<string, unknown>,
   thumbnailUrl?: string | null,
+  votes?: RobloxVoteData | null,
 ): Game {
   const universeId = String(raw.id ?? raw.universeId ?? "");
   const placeId = String(raw.rootPlaceId ?? "");
@@ -115,8 +142,10 @@ export function normalizeRobloxGameData(
   const description = String(raw.description ?? "");
   const created = String(raw.created ?? new Date().toISOString());
   const updated = String(raw.updated ?? created);
-  const upvotes = Number(raw.upVotes ?? raw.upvotes ?? 0);
-  const downvotes = Number(raw.downVotes ?? raw.downvotes ?? 0);
+  const upvotes = Number(votes?.upVotes ?? raw.upVotes ?? raw.upvotes ?? 0);
+  const downvotes = Number(
+    votes?.downVotes ?? raw.downVotes ?? raw.downvotes ?? 0,
+  );
   const likeRatio =
     upvotes + downvotes > 0
       ? Math.round((upvotes / (upvotes + downvotes)) * 1000) / 10
@@ -169,24 +198,32 @@ export async function importRobloxGameFromInput(
   universeId: string;
   game: Game;
   raw: Record<string, unknown>;
+  votes: RobloxVoteData | null;
 }> {
   const placeId = extractRobloxPlaceId(input);
   if (!placeId)
     throw new Error("Enter a valid Roblox game URL or numeric place ID.");
   const universeId = await fetchUniverseIdFromPlaceId(placeId);
   const raw = await fetchRobloxGameByUniverseId(universeId);
-  const icon = await fetchRobloxGameIcon(universeId);
+  const [icon, votes] = await Promise.all([
+    fetchRobloxGameIcon(universeId),
+    fetchRobloxGameVotes(universeId),
+  ]);
   const game = normalizeRobloxGameData(
     { ...raw, rootPlaceId: raw.rootPlaceId ?? placeId },
     icon,
+    votes,
   );
-  return { placeId, universeId, game, raw };
+  return { placeId, universeId, game, raw, votes };
 }
 
 export async function fetchGameByUniverseId(universeId: string): Promise<Game> {
   const raw = await fetchRobloxGameByUniverseId(universeId);
-  const icon = await fetchRobloxGameIcon(universeId);
-  return normalizeRobloxGameData(raw, icon);
+  const [icon, votes] = await Promise.all([
+    fetchRobloxGameIcon(universeId),
+    fetchRobloxGameVotes(universeId),
+  ]);
+  return normalizeRobloxGameData(raw, icon, votes);
 }
 
 export async function fetchGameByPlaceId(placeId: string): Promise<Game> {

@@ -14,7 +14,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json().catch(() => ({}))) as { input?: string };
+  const body = (await request.json().catch(() => ({}))) as {
+    input?: string;
+    force?: boolean;
+  };
   if (!body.input || typeof body.input !== "string") {
     return NextResponse.json(
       { error: "Roblox game URL or Place ID is required." },
@@ -33,6 +36,7 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (
+      !body.force &&
       existing.data?.last_fetched_at &&
       Date.now() - new Date(existing.data.last_fetched_at).getTime() <
         10 * 60 * 1000
@@ -82,7 +86,7 @@ export async function POST(request: Request) {
           niche: game.niche,
           mechanics: game.mechanics,
           monetization_tags: game.monetizationTags,
-          raw_data: imported.raw,
+          raw_data: { ...imported.raw, votes: imported.votes },
         },
         { onConflict: "roblox_universe_id" },
       )
@@ -128,6 +132,8 @@ export async function POST(request: Request) {
         placeId: imported.placeId,
         universeId: imported.universeId,
         gameId: savedGame.id,
+        votes: imported.votes,
+        forced: Boolean(body.force),
       },
     });
 

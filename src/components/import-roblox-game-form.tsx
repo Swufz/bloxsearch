@@ -11,20 +11,20 @@ type ImportResult = {
 
 export function ImportRobloxGameForm() {
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<"import" | "refresh" | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState("");
   const { showToast } = useToast();
 
-  async function importGame() {
-    setLoading(true);
+  async function importGame(force = false) {
+    setLoading(force ? "refresh" : "import");
     setError("");
     setResult(null);
     try {
       const response = await fetch("/api/admin/import-roblox-game", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input }),
+        body: JSON.stringify({ input, force }),
       });
       const payload = (await response.json().catch(() => ({}))) as {
         error?: string;
@@ -39,7 +39,7 @@ export function ImportRobloxGameForm() {
       setError(message);
       showToast(message);
     } finally {
-      setLoading(false);
+      setLoading(null);
     }
   }
 
@@ -56,11 +56,20 @@ export function ImportRobloxGameForm() {
           className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-400"
         />
         <button
-          onClick={importGame}
-          disabled={loading || !input.trim()}
+          onClick={() => importGame(false)}
+          disabled={Boolean(loading) || !input.trim()}
           className="rounded-lg bg-sky-400 px-3 py-2 text-xs font-semibold text-slate-950 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? "Importing..." : "Import Roblox Game"}
+          {loading === "import" ? "Importing..." : "Import Roblox Game"}
+        </button>
+        <button
+          onClick={() => importGame(true)}
+          disabled={Boolean(loading) || !input.trim()}
+          className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading === "refresh"
+            ? "Refreshing..."
+            : "Refresh Imported Game Data"}
         </button>
       </div>
       {error && <p className="mt-2 text-xs text-red-300">{error}</p>}

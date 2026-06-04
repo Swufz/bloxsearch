@@ -115,16 +115,25 @@ export async function getUserSavedIdeas(userId?: string): Promise<SavedIdea[]> {
       concept: row.description ?? "",
       coreLoop:
         "Prototype the core loop, validate retention, and expand only after players return.",
+      howPlayersPlay:
+        "Prototype the core loop, validate retention, and expand only after players return.",
       whyItCouldWork:
         "Saved from an opportunity signal discovered in BloxSearch.",
+      differentFromOriginal:
+        "Change the mechanic, theme, UI, map, name, and economy before building.",
       difficulty:
         row.difficulty === "Easy" || row.difficulty === "Hard"
           ? row.difficulty
           : "Medium",
       monetization: row.monetization_options ?? [],
       avoidCloning:
-        "Use original assets, names, maps, UI, art direction, and economy.",
+        "Use the trend, not the exact game. Change the mechanic, theme, UI, map, name, and economy.",
       buildScope: "Define a focused MVP before expanding content.",
+      potentialScore: row.opportunity_score ?? 0,
+      potentialReason:
+        row.notes ??
+        "Saved from an opportunity signal discovered in BloxSearch.",
+      risk: "Validate retention with a small prototype before scaling content.",
       niche: row.niche ?? "",
       opportunityScore: row.opportunity_score ?? 0,
       notes: row.notes ?? "",
