@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { IdeaCard } from "@/components/idea-card";
+import { useToast } from "@/components/toast";
 import type { SavedIdea } from "@/lib/types";
 
 export function SavedIdeasList({
@@ -10,10 +11,9 @@ export function SavedIdeasList({
   initialIdeas: SavedIdea[];
 }) {
   const [ideas, setIdeas] = useState(initialIdeas);
-  const [message, setMessage] = useState("");
+  const { showToast } = useToast();
 
   async function deleteIdea(id: string) {
-    setMessage("");
     const previous = ideas;
     setIdeas((items) => items.filter((item) => item.id !== id));
     const response = await fetch(`/api/saved-ideas/${encodeURIComponent(id)}`, {
@@ -21,10 +21,10 @@ export function SavedIdeasList({
     });
     if (!response.ok) {
       setIdeas(previous);
-      setMessage("Error deleting idea");
+      showToast("Error deleting idea");
       return;
     }
-    setMessage("Idea deleted");
+    showToast("Idea deleted");
   }
 
   if (!ideas.length) {
@@ -40,11 +40,6 @@ export function SavedIdeasList({
 
   return (
     <>
-      {message && (
-        <div className="mb-4 rounded-lg border border-slate-700 bg-slate-900 p-3 text-sm text-slate-200">
-          {message}
-        </div>
-      )}
       <div className="grid gap-4 lg:grid-cols-2">
         {ideas.map((idea) => (
           <div key={idea.id}>
