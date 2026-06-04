@@ -2,8 +2,7 @@ import type { Game } from "./types";
 import { generateIdeas } from "./idea-generator";
 import { scoreGame } from "./scoring";
 import { mockGames } from "./mock-data";
-
-const MOCK_MODE = process.env.MOCK_ROBLOX_MODE !== "false";
+import { isMockMode } from "./mode";
 
 export async function safeFetchWithRetry(url: string, attempts = 3): Promise<unknown> {
   let lastError: unknown;
@@ -55,7 +54,7 @@ export function normalizeRobloxGameData(raw: Record<string, unknown>): Game {
 }
 
 export async function fetchGameByUniverseId(universeId: string): Promise<Game> {
-  if (MOCK_MODE) return mockGames.find((game) => game.robloxUniverseId === universeId) ?? mockGames[0];
+  if (isMockMode()) return mockGames.find((game) => game.robloxUniverseId === universeId) ?? mockGames[0];
   // Roblox public endpoint URLs and response shapes may change; keep adjustments isolated here.
   const raw = await safeFetchWithRetry(`https://games.roblox.com/v1/games?universeIds=${encodeURIComponent(universeId)}`) as { data?: Record<string, unknown>[] };
   if (!raw.data?.[0]) throw new Error("Roblox game not found");
@@ -63,7 +62,7 @@ export async function fetchGameByUniverseId(universeId: string): Promise<Game> {
 }
 
 export async function fetchGameByPlaceId(placeId: string): Promise<Game> {
-  if (MOCK_MODE) return mockGames.find((game) => game.robloxPlaceId === placeId) ?? mockGames[0];
+  if (isMockMode()) return mockGames.find((game) => game.robloxPlaceId === placeId) ?? mockGames[0];
   const universe = await safeFetchWithRetry(`https://apis.roblox.com/universes/v1/places/${encodeURIComponent(placeId)}/universe`) as { universeId?: number };
   if (!universe.universeId) throw new Error("Roblox universe not found");
   return fetchGameByUniverseId(String(universe.universeId));

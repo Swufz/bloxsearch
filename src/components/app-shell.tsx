@@ -14,7 +14,7 @@ const links = [
   { href: "/admin", label: "Admin", icon: Settings },
 ];
 
-export function AppShell({ children, title, subtitle }: { children: React.ReactNode; title: string; subtitle?: string }) {
+export function AppShell({ children, title, subtitle, demoMode = false }: { children: React.ReactNode; title: string; subtitle?: string; demoMode?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   return (
@@ -36,6 +36,7 @@ export function AppShell({ children, title, subtitle }: { children: React.ReactN
           <div className="flex items-center gap-3"><span className="hidden text-sm text-slate-400 sm:inline">Demo workspace</span><span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-sky-400 to-emerald-400 text-xs font-bold text-slate-950">BS</span></div>
         </header>
         <main className="mx-auto max-w-[1500px] p-4 md:p-8">
+          {demoMode && <div className="mb-5 rounded-xl border border-sky-400/20 bg-sky-400/5 px-4 py-3 text-sm text-sky-200"><strong>Demo mode:</strong> using fictional Roblox-style mock data. <span className="text-sky-200/70">Saving requires login. Demo browsing is available.</span></div>}
           <div className="mb-7"><h1 className="text-2xl font-bold tracking-tight md:text-3xl">{title}</h1>{subtitle && <p className="mt-1.5 text-sm text-slate-400">{subtitle}</p>}</div>
           {children}
         </main>

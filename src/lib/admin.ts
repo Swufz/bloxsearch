@@ -1,7 +1,8 @@
 import { isSupabaseConfigured, createSupabaseServerClient } from "./supabase/server";
+import { isMockMode } from "./mode";
 
 export async function isAdminRequest() {
-  if (process.env.NODE_ENV === "development" && !isSupabaseConfigured()) return true;
+  if (isMockMode()) return true;
   if (!isSupabaseConfigured()) return false;
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.auth.getUser();

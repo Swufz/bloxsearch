@@ -5,7 +5,7 @@ import type { Game } from "@/lib/types";
 import { daysAgo, formatNumber } from "@/lib/utils";
 import { ScoreBadge } from "./score-badge";
 
-export function GameCard({ game }: { game: Game }) {
+export function GameCard({ game, demoMode = false }: { game: Game; demoMode?: boolean }) {
   return (
     <article className="card overflow-hidden transition hover:-translate-y-0.5 hover:border-slate-600">
       <div className="relative aspect-video overflow-hidden bg-slate-900">
@@ -23,7 +23,7 @@ export function GameCard({ game }: { game: Game }) {
         </div>
         <div className="my-4 flex flex-wrap gap-1.5">{[game.niche, ...game.tags].slice(0, 3).map((tag) => <span key={tag} className="rounded-md bg-slate-800 px-2 py-1 text-[11px] text-slate-300">{tag}</span>)}</div>
         <p className="min-h-10 text-xs leading-5 text-slate-400">{game.score.outlierReason}</p>
-        <div className="mt-4 flex gap-2"><Link href={`/games/${game.id}`} className="flex-1 rounded-lg bg-sky-400 px-3 py-2 text-center text-xs font-semibold text-slate-950 hover:bg-sky-300">Analyze</Link><button className="rounded-lg border border-slate-700 px-3 text-slate-300 hover:bg-slate-800" title="Save game"><Bookmark size={15} /></button></div>
+        <div className="mt-4 flex gap-2"><Link href={`/games/${game.id}`} className="flex-1 rounded-lg bg-sky-400 px-3 py-2 text-center text-xs font-semibold text-slate-950 hover:bg-sky-300">Analyze</Link><button disabled={demoMode} className="rounded-lg border border-slate-700 px-3 text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40" title={demoMode ? "Saving requires login. Demo browsing is available." : "Save game"}><Bookmark size={15} /></button></div>
       </div>
     </article>
   );

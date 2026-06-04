@@ -1,8 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { isMockMode } from "@/lib/mode";
 
 export async function proxy(request: NextRequest) {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return NextResponse.next();
+  if (isMockMode()) return NextResponse.next();
+  const protectedPath = ["/dashboard", "/outliers", "/ideas", "/admin", "/games"].some((path) => request.nextUrl.pathname.startsWith(path));
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return protectedPath ? NextResponse.redirect(new URL("/login", request.url)) : NextResponse.next();
+  }
   let response = NextResponse.next({ request });
   const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
     cookies: {
@@ -15,7 +20,6 @@ export async function proxy(request: NextRequest) {
     },
   });
   const { data } = await supabase.auth.getUser();
-  const protectedPath = ["/dashboard", "/outliers", "/ideas", "/admin", "/games"].some((path) => request.nextUrl.pathname.startsWith(path));
   if (protectedPath && !data.user) return NextResponse.redirect(new URL("/login", request.url));
   return response;
 }
