@@ -62,6 +62,19 @@ export type SavedIdea = GeneratedIdea & {
   createdAt: string;
 };
 
+export type SavedGame = {
+  id: string;
+  gameId: string;
+  databaseGameId: string;
+  robloxUniverseId: string;
+  title: string;
+  creatorName: string;
+  activePlayers: number;
+  visits: number;
+  opportunityScore: number | null;
+  createdAt: string;
+};
+
 export type CollectionLog = {
   id: string;
   action: string;

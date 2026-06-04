@@ -1,4 +1,5 @@
-import type { Game, SavedIdea } from "./types";
+import type { Game, SavedGame, SavedIdea } from "./types";
+import { getGames } from "./data";
 import { getGame } from "./data";
 import { createSupabaseAdminClient } from "./supabase/admin";
 import {
@@ -36,6 +37,62 @@ export async function getSavedGameUniverseIds(
       return game?.roblox_universe_id;
     })
     .filter((id): id is string => Boolean(id));
+}
+
+export async function getUserSavedGames(userId?: string): Promise<SavedGame[]> {
+  if (!userId || !isSupabaseConfigured()) return [];
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("saved_games")
+    .select(
+      "id, game_id, created_at, games(id, roblox_universe_id, title, creator_name, active_players, visits, game_scores(opportunity_score))",
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[saved-games] Failed to fetch saved games", {
+      userId,
+      error,
+    });
+    return [];
+  }
+
+  return (data ?? [])
+    .map((row) => {
+      const game = row.games as unknown as {
+        id?: string;
+        roblox_universe_id?: string;
+        title?: string;
+        creator_name?: string;
+        active_players?: number;
+        visits?: number;
+        game_scores?:
+          | { opportunity_score?: number }
+          | { opportunity_score?: number }[]
+          | null;
+      } | null;
+      const score = Array.isArray(game?.game_scores)
+        ? game?.game_scores[0]?.opportunity_score
+        : game?.game_scores?.opportunity_score;
+      if (!game?.id || !game.title) return null;
+      const mockGameId = getGames().find(
+        (item) => item.robloxUniverseId === game.roblox_universe_id,
+      )?.id;
+      return {
+        id: row.id,
+        gameId: mockGameId ?? game.id,
+        databaseGameId: game.id,
+        robloxUniverseId: game.roblox_universe_id ?? "",
+        title: game.title,
+        creatorName: game.creator_name ?? "Unknown creator",
+        activePlayers: game.active_players ?? 0,
+        visits: game.visits ?? 0,
+        opportunityScore: score ?? null,
+        createdAt: row.created_at,
+      };
+    })
+    .filter((game): game is SavedGame => Boolean(game));
 }
 
 export async function getUserSavedIdeas(userId?: string): Promise<SavedIdea[]> {

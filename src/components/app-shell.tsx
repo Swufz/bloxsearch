@@ -11,7 +11,7 @@ import { AuthActions } from "./auth-actions";
 const links = [
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { href: "/outliers", label: "Outlier Finder", icon: Search },
-  { href: "/ideas", label: "Saved Ideas", icon: Bookmark },
+  { href: "/ideas", label: "Saved", icon: Bookmark },
   { href: "/admin", label: "Admin", icon: Settings },
 ];
 

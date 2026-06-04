@@ -30,9 +30,9 @@ export function SavedIdeasList({
   if (!ideas.length) {
     return (
       <div className="card p-14 text-center">
-        <h2 className="font-semibold">No saved ideas yet</h2>
+        <h2 className="font-semibold">No saved ideas yet.</h2>
         <p className="mt-2 text-sm text-slate-400">
-          Analyze an outlier game and save a direction worth prototyping.
+          Analyze a game and save a generated direction.
         </p>
       </div>
     );

@@ -4,6 +4,7 @@ import {
   ensureGameRecord,
   getMissingSaveEnvVars,
   getSavedGameUniverseIds,
+  getUserSavedGames,
 } from "@/lib/saved-data";
 
 export async function GET() {
@@ -14,7 +15,8 @@ export async function GET() {
       { status: 401 },
     );
   return NextResponse.json({
-    data: await getSavedGameUniverseIds(auth.user.id),
+    data: await getUserSavedGames(auth.user.id),
+    savedUniverseIds: await getSavedGameUniverseIds(auth.user.id),
   });
 }
 
