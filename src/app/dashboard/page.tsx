@@ -1,16 +1,142 @@
 import Link from "next/link";
-import { Activity, ArrowRight, BarChart3, Gamepad2, Sparkles, Target } from "lucide-react";
+import {
+  Activity,
+  ArrowRight,
+  BarChart3,
+  Gamepad2,
+  Sparkles,
+  Target,
+} from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { GameCard } from "@/components/game-card";
 import { StatCard } from "@/components/stat-card";
 import { getGames } from "@/lib/data";
 import { formatNumber } from "@/lib/utils";
 import { isMockMode } from "@/lib/mode";
+import { ensureProfile, getCurrentUser } from "@/lib/auth";
+import { getSavedGameUniverseIds } from "@/lib/saved-data";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const user = await getCurrentUser();
+  if (user) await ensureProfile(user);
+  const savedUniverseIds = new Set(await getSavedGameUniverseIds(user?.id));
   const games = getGames();
-  const avg = Math.round(games.reduce((sum, game) => sum + game.score.opportunity, 0) / games.length);
-  const niches = [...new Set(games.map((g) => g.niche))].map((niche) => ({ niche, count: games.filter((g) => g.niche === niche).length, avg: Math.round(games.filter((g) => g.niche === niche).reduce((s, g) => s + g.score.opportunity, 0) / games.filter((g) => g.niche === niche).length) })).sort((a, b) => b.avg - a.avg).slice(0, 5);
+  const avg = Math.round(
+    games.reduce((sum, game) => sum + game.score.opportunity, 0) / games.length,
+  );
+  const niches = [...new Set(games.map((g) => g.niche))]
+    .map((niche) => ({
+      niche,
+      count: games.filter((g) => g.niche === niche).length,
+      avg: Math.round(
+        games
+          .filter((g) => g.niche === niche)
+          .reduce((s, g) => s + g.score.opportunity, 0) /
+          games.filter((g) => g.niche === niche).length,
+      ),
+    }))
+    .sort((a, b) => b.avg - a.avg)
+    .slice(0, 5);
   const demoMode = isMockMode();
-  return <AppShell title="Dashboard" subtitle="A pulse check on the Roblox opportunities BloxSearch is tracking." demoMode={demoMode}><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard label="Total games tracked" value={formatNumber(games.length)} detail="Public experience data" icon={Gamepad2} /><StatCard label="Updated in last 24 hours" value="9" detail="36% of tracked games" icon={Activity} /><StatCard label="New outliers found" value={String(games.filter((g) => g.score.opportunity >= 70).length)} detail="Opportunity score 70+" icon={Sparkles} /><StatCard label="Average opportunity" value={String(avg)} detail="Across the current dataset" icon={Target} /></div><div className="mt-8 flex items-center justify-between"><div><h2 className="text-lg font-semibold">Top outlier games</h2><p className="mt-1 text-xs text-slate-500">Best opportunities by current score</p></div><Link href="/outliers" className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-400">Open finder <ArrowRight size={14} /></Link></div><div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">{games.slice(0, 5).map((game) => <GameCard key={game.id} game={game} demoMode={demoMode} />)}</div><div className="mt-8 grid gap-5 lg:grid-cols-[1.4fr_1fr]"><div className="card p-5"><div className="flex items-center gap-2"><BarChart3 size={18} className="text-sky-400" /><h2 className="font-semibold">Trending niches</h2></div><div className="mt-5 space-y-4">{niches.map((item) => <div key={item.niche} className="flex items-center gap-3"><span className="w-24 text-sm text-slate-300">{item.niche}</span><div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-800"><div className="h-full rounded-full bg-sky-400" style={{ width: `${item.avg}%` }} /></div><span className="w-8 text-right text-xs font-semibold text-slate-300">{item.avg}</span></div>)}</div></div><div className="card bg-gradient-to-br from-sky-400/10 to-emerald-400/5 p-6"><Sparkles className="text-sky-400" /><h2 className="mt-5 text-xl font-semibold">Ready to find your next idea?</h2><p className="mt-2 text-sm leading-6 text-slate-400">Filter by player demand, freshness, niche, and buildability to find a realistic opening.</p><Link href="/outliers" className="mt-5 inline-flex items-center gap-2 rounded-lg bg-sky-400 px-4 py-2.5 text-sm font-semibold text-slate-950">Explore outliers <ArrowRight size={15} /></Link></div></div></AppShell>;
+  return (
+    <AppShell
+      title="Dashboard"
+      subtitle="A pulse check on the Roblox opportunities BloxSearch is tracking."
+      demoMode={demoMode}
+      userEmail={user?.email}
+    >
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Total games tracked"
+          value={formatNumber(games.length)}
+          detail="Public experience data"
+          icon={Gamepad2}
+        />
+        <StatCard
+          label="Updated in last 24 hours"
+          value="9"
+          detail="36% of tracked games"
+          icon={Activity}
+        />
+        <StatCard
+          label="New outliers found"
+          value={String(games.filter((g) => g.score.opportunity >= 70).length)}
+          detail="Opportunity score 70+"
+          icon={Sparkles}
+        />
+        <StatCard
+          label="Average opportunity"
+          value={String(avg)}
+          detail="Across the current dataset"
+          icon={Target}
+        />
+      </div>
+      <div className="mt-8 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Top outlier games</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Best opportunities by current score
+          </p>
+        </div>
+        <Link
+          href="/outliers"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-400"
+        >
+          Open finder <ArrowRight size={14} />
+        </Link>
+      </div>
+      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        {games.slice(0, 5).map((game) => (
+          <GameCard
+            key={game.id}
+            game={game}
+            signedIn={Boolean(user)}
+            initiallySaved={savedUniverseIds.has(game.robloxUniverseId)}
+          />
+        ))}
+      </div>
+      <div className="mt-8 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+        <div className="card p-5">
+          <div className="flex items-center gap-2">
+            <BarChart3 size={18} className="text-sky-400" />
+            <h2 className="font-semibold">Trending niches</h2>
+          </div>
+          <div className="mt-5 space-y-4">
+            {niches.map((item) => (
+              <div key={item.niche} className="flex items-center gap-3">
+                <span className="w-24 text-sm text-slate-300">
+                  {item.niche}
+                </span>
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-800">
+                  <div
+                    className="h-full rounded-full bg-sky-400"
+                    style={{ width: `${item.avg}%` }}
+                  />
+                </div>
+                <span className="w-8 text-right text-xs font-semibold text-slate-300">
+                  {item.avg}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="card bg-gradient-to-br from-sky-400/10 to-emerald-400/5 p-6">
+          <Sparkles className="text-sky-400" />
+          <h2 className="mt-5 text-xl font-semibold">
+            Ready to find your next idea?
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            Filter by player demand, freshness, niche, and buildability to find
+            a realistic opening.
+          </p>
+          <Link
+            href="/outliers"
+            className="mt-5 inline-flex items-center gap-2 rounded-lg bg-sky-400 px-4 py-2.5 text-sm font-semibold text-slate-950"
+          >
+            Explore outliers <ArrowRight size={15} />
+          </Link>
+        </div>
+      </div>
+    </AppShell>
+  );
 }

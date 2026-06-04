@@ -11,10 +11,13 @@ import { AppShell } from "@/components/app-shell";
 import { GameCard } from "@/components/game-card";
 import { IdeaCard } from "@/components/idea-card";
 import { OpportunityBreakdown } from "@/components/opportunity-breakdown";
+import { SaveGameButton } from "@/components/save-game-button";
 import { ScoreBadge } from "@/components/score-badge";
 import { getGame, getGames } from "@/lib/data";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { isMockMode } from "@/lib/mode";
+import { ensureProfile, getCurrentUser } from "@/lib/auth";
+import { getSavedGameUniverseIds } from "@/lib/saved-data";
 
 export default async function GamePage({
   params,
@@ -22,9 +25,12 @@ export default async function GamePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const user = await getCurrentUser();
+  if (user) await ensureProfile(user);
   const game = getGame(id);
   if (!game) notFound();
   const demoMode = isMockMode();
+  const savedUniverseIds = new Set(await getSavedGameUniverseIds(user?.id));
   const similar = getGames()
     .filter((item) => item.id !== game.id && item.niche === game.niche)
     .slice(0, 3);
@@ -33,6 +39,7 @@ export default async function GamePage({
       title="Game Analysis"
       subtitle="Explainable market signals and buildable directions."
       demoMode={demoMode}
+      userEmail={user?.email}
     >
       <div className="card overflow-hidden">
         <div className="relative aspect-[3/1] min-h-56 bg-slate-900">
@@ -145,7 +152,7 @@ export default async function GamePage({
             </div>
             <div className="grid gap-4">
               {game.ideas.map((idea) => (
-                <IdeaCard key={idea.title} idea={idea} demoMode={demoMode} />
+                <IdeaCard key={idea.title} idea={idea} gameId={game.id} niche={game.niche} opportunityScore={game.score.opportunity} signedIn={Boolean(user)} />
               ))}
             </div>
           </section>
@@ -168,14 +175,15 @@ export default async function GamePage({
               ))}
             </ul>
           </section>
-          <a
-            href={game.gameUrl}
+            <a
+              href={game.gameUrl}
             target="_blank"
             rel="noreferrer"
             className="flex items-center justify-center gap-2 rounded-lg border border-slate-700 px-4 py-3 text-sm font-medium text-slate-300 hover:bg-slate-800"
           >
-            View public Roblox page <ExternalLink size={15} />
-          </a>
+              View public Roblox page <ExternalLink size={15} />
+            </a>
+            <SaveGameButton gameId={game.id} signedIn={Boolean(user)} initiallySaved={savedUniverseIds.has(game.robloxUniverseId)} compact={false} />
         </aside>
       </div>
       {similar.length > 0 && (
@@ -183,7 +191,7 @@ export default async function GamePage({
           <h2 className="mb-4 font-semibold">Similar games</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {similar.map((item) => (
-                  <GameCard key={item.id} game={item} demoMode={demoMode} />
+                  <GameCard key={item.id} game={item} signedIn={Boolean(user)} initiallySaved={savedUniverseIds.has(item.robloxUniverseId)} />
             ))}
           </div>
         </section>

@@ -111,6 +111,7 @@ create policy "Public game read" on public.games for select using (true);
 create policy "Public snapshot read" on public.game_snapshots for select using (true);
 create policy "Public score read" on public.game_scores for select using (true);
 create policy "Users read own profile" on public.profiles for select using (auth.uid() = id);
+create policy "Users insert own profile" on public.profiles for insert with check (auth.uid() = id);
 create policy "Users update own profile" on public.profiles for update using (auth.uid() = id);
 create policy "Users read own saved games" on public.saved_games for select using (auth.uid() = user_id);
 create policy "Users insert own saved games" on public.saved_games for insert with check (auth.uid() = user_id);
