@@ -1,6 +1,6 @@
 import { generateIdeas } from "./idea-generator";
 import { scoreGame } from "./scoring";
-import type { Game } from "./types";
+import type { Game, RobloxSearchResult } from "./types";
 
 export async function safeFetchWithRetry(
   url: string,
@@ -96,6 +96,104 @@ export async function fetchRobloxGameIcon(
     data?: Array<{ imageUrl?: string; state?: string }>;
   } | null;
   return raw?.data?.[0]?.imageUrl ?? null;
+}
+
+export async function fetchRobloxGameIcons(
+  universeIds: string[],
+): Promise<Map<string, string>> {
+  if (!universeIds.length) return new Map();
+  const raw = (await safeFetchWithRetry(
+    `https://thumbnails.roblox.com/v1/games/icons?universeIds=${universeIds.map(encodeURIComponent).join(",")}&size=512x512&format=Png&isCircular=false`,
+  ).catch(() => null)) as {
+    data?: Array<{ targetId?: number | string; imageUrl?: string }>;
+  } | null;
+  return new Map(
+    (raw?.data ?? [])
+      .filter((item) => item.targetId && item.imageUrl)
+      .map((item) => [String(item.targetId), String(item.imageUrl)]),
+  );
+}
+
+export function normalizeRobloxSearchResult(
+  raw: Record<string, unknown>,
+  sourceKeyword = "",
+  thumbnailUrl?: string | null,
+): RobloxSearchResult | null {
+  const universeId = raw.universeId ?? raw.contentId;
+  const placeId = raw.rootPlaceId;
+  if (!universeId) return null;
+  const upvotes = Number(raw.totalUpVotes ?? raw.upVotes ?? 0);
+  const downvotes = Number(raw.totalDownVotes ?? raw.downVotes ?? 0);
+  return {
+    title: String(raw.name ?? raw.title ?? "Untitled Roblox Experience"),
+    universeId: String(universeId),
+    placeId: placeId ? String(placeId) : "",
+    creatorName: String(raw.creatorName ?? "Unknown creator"),
+    creatorId: String(raw.creatorId ?? ""),
+    thumbnailUrl: thumbnailUrl ?? null,
+    activePlayers: Number(raw.playerCount ?? raw.playing ?? 0),
+    visits: Number(raw.visits ?? 0),
+    favorites: Number(raw.favoritedCount ?? raw.favorites ?? 0),
+    genre: raw.genre ? String(raw.genre) : null,
+    sourceKeyword,
+    raw: { ...raw, totalUpVotes: upvotes, totalDownVotes: downvotes },
+  };
+}
+
+export async function searchRobloxGamesByKeyword(
+  keyword: string,
+  limit = 25,
+): Promise<RobloxSearchResult[]> {
+  const trimmed = keyword.trim();
+  const safeLimit = Math.min(Math.max(Math.round(limit), 1), 50);
+  if (!trimmed) return [];
+  const url =
+    `https://apis.roblox.com/search-api/omni-search?searchQuery=${encodeURIComponent(trimmed)}` +
+    "&sessionId=00000000-0000-0000-0000-000000000000&pageType=games";
+  const response = await fetch(url, {
+    headers: { "User-Agent": "BloxSearch-MVP/1.0" },
+    next: { revalidate: 300 },
+  });
+  if (response.status === 429) {
+    throw new Error("Roblox rate limited this request. Try again later.");
+  }
+  if (!response.ok) {
+    throw new Error("Roblox search endpoint unavailable. Paste game URLs manually.");
+  }
+  const raw = (await response.json()) as {
+    searchResults?: Array<{ contentGroupType?: string; contents?: Record<string, unknown>[] }>;
+  };
+  const contents = (raw.searchResults ?? [])
+    .flatMap((group) => group.contents ?? [])
+    .filter((item) => item.universeId || item.contentId)
+    .slice(0, safeLimit);
+  const icons = await fetchRobloxGameIcons(
+    contents
+      .map((item) => String(item.universeId ?? item.contentId ?? ""))
+      .filter(Boolean),
+  );
+  return contents
+    .map((item) =>
+      normalizeRobloxSearchResult(
+        item,
+        trimmed,
+        icons.get(String(item.universeId ?? item.contentId ?? "")),
+      ),
+    )
+    .filter((item): item is RobloxSearchResult => Boolean(item));
+}
+
+export async function discoverAndPreviewGames(keyword: string, limit: number) {
+  return searchRobloxGamesByKeyword(keyword, limit);
+}
+
+export async function importDiscoveredGame(input: {
+  universeId?: string;
+  placeId?: string;
+}) {
+  if (input.universeId) return fetchGameByUniverseId(input.universeId);
+  if (input.placeId) return fetchGameByPlaceId(input.placeId);
+  throw new Error("A universeId or placeId is required.");
 }
 
 function inferNicheAndMechanics(title: string, description: string) {

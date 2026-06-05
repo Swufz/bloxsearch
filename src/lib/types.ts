@@ -90,6 +90,8 @@ export type Game = {
   id: string;
   databaseId?: string;
   dataSource?: "mock" | "real";
+  sourceKeyword?: string | null;
+  trackingEnabled?: boolean;
   robloxUniverseId: string;
   robloxPlaceId: string;
   title: string;
@@ -121,6 +123,21 @@ export type Game = {
   snapshotCount?: number;
   metrics?: RobloxGameMetrics | null;
   trackingSummary?: RobloxGameSnapshotSummary | null;
+};
+
+export type RobloxSearchResult = {
+  title: string;
+  universeId: string;
+  placeId: string;
+  creatorName: string;
+  creatorId: string;
+  thumbnailUrl: string | null;
+  activePlayers: number;
+  visits: number;
+  favorites: number;
+  genre: string | null;
+  sourceKeyword: string;
+  raw: Record<string, unknown>;
 };
 
 export type SavedIdea = GeneratedIdea & {
