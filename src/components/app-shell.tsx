@@ -74,9 +74,9 @@ export function AppShell({
           ))}
         </nav>
         <div className="absolute bottom-5 left-5 right-5 rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-xs text-slate-400">
-          <p className="font-semibold text-slate-200">Mock data mode</p>
+          <p className="font-semibold text-slate-200">Real data mode</p>
           <p className="mt-1">
-            Connect Supabase and Roblox public APIs when you are ready.
+            Public Roblox data from imported and tracked games.
           </p>
         </div>
       </aside>
@@ -102,10 +102,10 @@ export function AppShell({
         <main className="mx-auto max-w-[1500px] p-4 md:p-8">
           {demoMode && (
             <div className="mb-5 rounded-xl border border-sky-400/20 bg-sky-400/5 px-4 py-3 text-sm text-sky-200">
-              <strong>Demo mode:</strong> using fictional Roblox-style mock
-              data.{" "}
+              <strong>BloxSearch:</strong> using public Roblox data from
+              imported and tracked games.{" "}
               <span className="text-sky-200/70">
-                Saving requires login. Demo browsing is available.
+                Saving requires login.
               </span>
             </div>
           )}

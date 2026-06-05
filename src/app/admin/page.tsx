@@ -8,6 +8,7 @@ import {
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { AdminActions } from "@/components/admin-actions";
+import { DatasetAdminPanel } from "@/components/dataset-admin-panel";
 import { DiscoveryAdminPanel } from "@/components/discovery-admin-panel";
 import { ImportRobloxGameForm } from "@/components/import-roblox-game-form";
 import { TrackingAdminPanel } from "@/components/tracking-admin-panel";
@@ -16,6 +17,8 @@ import { getCollectionLogs, getGames, getImportedGames } from "@/lib/data";
 import { isMockMode } from "@/lib/mode";
 import { getTopKeywordsByActivePlayers } from "@/lib/trend-analysis";
 import { getTrackingAdminSummary } from "@/lib/tracking";
+import { getDatasetSettings } from "@/lib/dataset-settings";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export default async function AdminPage() {
   const logs = getCollectionLogs();
@@ -30,6 +33,21 @@ export default async function AdminPage() {
   const [importedGames, topKeywords] = await Promise.all([
     getImportedGames(),
     getTopKeywordsByActivePlayers(6).catch(() => []),
+  ]);
+  const settings = await getDatasetSettings();
+  const adminClient = createSupabaseAdminClient();
+  const [{ data: clusters }, { data: archivedGames }] = await Promise.all([
+    adminClient
+      .from("trend_clusters")
+      .select("*")
+      .order("total_active_players", { ascending: false })
+      .limit(10),
+    adminClient
+      .from("games")
+      .select("id, title, active_players, low_ccu_streak, archive_reason, archived_at")
+      .eq("is_archived", true)
+      .order("archived_at", { ascending: false })
+      .limit(20),
   ]);
   const trackingSummary = await getTrackingAdminSummary().catch(() => ({
     games: [],
@@ -52,9 +70,22 @@ export default async function AdminPage() {
       <div className="grid gap-4 md:grid-cols-3">
         {[
           ["System status", "Operational", Server],
-          ["Dataset size", String(importedGames.length + mockGames.length), Database],
+          [
+            "Dataset size",
+            String(
+              importedGames.length +
+                (process.env.NODE_ENV === "development" ? mockGames.length : 0),
+            ),
+            Database,
+          ],
           ["Imported real games", String(importedGames.length), Activity],
-          ["Mock games", String(mockGames.length), Activity],
+          [
+            "Mock games",
+            process.env.NODE_ENV === "development"
+              ? String(mockGames.length)
+              : "Hidden",
+            Activity,
+          ],
         ].map(([label, value, Icon]) => {
           const I = Icon as typeof Server;
           return (
@@ -70,15 +101,17 @@ export default async function AdminPage() {
         <section className="card p-6">
           <h2 className="font-semibold">Data actions</h2>
           <div className="mt-5 space-y-3">
-            <button className="flex w-full items-center justify-between rounded-lg border border-slate-700 px-4 py-3 text-left text-sm hover:bg-slate-800">
-              <span className="flex items-center gap-2">
-                <Database size={15} className="text-sky-400" />
-                Seed mock data
-              </span>
-              <span className="text-xs text-slate-500">
-                POST /api/admin/seed
-              </span>
-            </button>
+            {process.env.NODE_ENV === "development" && (
+              <button className="flex w-full items-center justify-between rounded-lg border border-slate-700 px-4 py-3 text-left text-sm hover:bg-slate-800">
+                <span className="flex items-center gap-2">
+                  <Database size={15} className="text-sky-400" />
+                  Seed mock data
+                </span>
+                <span className="text-xs text-slate-500">
+                  POST /api/admin/seed
+                </span>
+              </button>
+            )}
             <AdminActions />
             <div className="rounded-lg border border-slate-700 p-3">
               <label className="text-xs text-slate-400">
@@ -95,10 +128,12 @@ export default async function AdminPage() {
               </div>
             </div>
             <ImportRobloxGameForm />
-            <button className="flex w-full items-center gap-2 rounded-lg border border-red-500/20 px-4 py-3 text-left text-sm text-red-300 hover:bg-red-500/5">
-              <Trash2 size={15} />
-              Clear mock data
-            </button>
+            {process.env.NODE_ENV === "development" && (
+              <button className="flex w-full items-center gap-2 rounded-lg border border-red-500/20 px-4 py-3 text-left text-sm text-red-300 hover:bg-red-500/5">
+                <Trash2 size={15} />
+                Clear mock data
+              </button>
+            )}
           </div>
         </section>
         <section className="card p-6">
@@ -123,6 +158,11 @@ export default async function AdminPage() {
             ))}
           </div>
         </section>
+        <DatasetAdminPanel
+          settings={settings}
+          clusters={clusters ?? []}
+          archivedGames={archivedGames ?? []}
+        />
         <DiscoveryAdminPanel />
         <TrackingAdminPanel
           games={trackingSummary.games}

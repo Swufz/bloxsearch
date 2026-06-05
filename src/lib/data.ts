@@ -40,6 +40,13 @@ type DatabaseGameRow = {
   tags: string[] | null;
   niche: string | null;
   source_keyword?: string | null;
+  discovery_source?: string | null;
+  discovery_rank?: number | null;
+  discovered_at?: string | null;
+  is_archived?: boolean | null;
+  archived_at?: string | null;
+  archive_reason?: string | null;
+  low_ccu_streak?: number | null;
   genre?: string | null;
   subgenre?: string | null;
   mechanics: string[] | null;
@@ -87,6 +94,13 @@ export function mapDatabaseGame(row: DatabaseGameRow): Game {
     databaseId: row.id,
     dataSource: "real" as const,
     sourceKeyword: row.source_keyword ?? null,
+    discoverySource: row.discovery_source ?? null,
+    discoveryRank: row.discovery_rank ?? null,
+    discoveredAt: row.discovered_at ?? null,
+    isArchived: Boolean(row.is_archived),
+    archivedAt: row.archived_at ?? null,
+    archiveReason: row.archive_reason ?? null,
+    lowCcuStreak: Number(row.low_ccu_streak ?? 0),
     trackingEnabled: Array.isArray(row.tracked_games)
       ? Boolean(row.tracked_games[0]?.tracking_enabled)
       : Boolean(row.tracked_games?.tracking_enabled),
@@ -175,6 +189,7 @@ export async function getImportedGames(): Promise<Game[]> {
     .select(
       "*, game_scores(opportunity_score, demand_score, growth_score, competition_score, freshness_score, buildability_score, monetization_score, outlier_reason, risks, generated_ideas), roblox_game_metrics(*), roblox_game_snapshots(id, captured_at), tracked_games(tracking_enabled)",
     )
+    .eq("is_archived", false)
     .order("last_fetched_at", { ascending: false });
   if (error) {
     console.error("[games] Failed to fetch imported games", { error });
@@ -187,6 +202,9 @@ export async function getImportedGames(): Promise<Game[]> {
 
 export async function getDisplayGames(): Promise<Game[]> {
   const importedGames = await getImportedGames();
+  const showMock =
+    process.env.SHOW_MOCK_DATA === "true" && process.env.NODE_ENV === "development";
+  if (!showMock) return importedGames;
   const importedUniverseIds = new Set(
     importedGames.map((game) => game.robloxUniverseId).filter(Boolean),
   );
@@ -199,7 +217,9 @@ export async function getDisplayGames(): Promise<Game[]> {
 }
 
 export async function getDisplayGame(id: string): Promise<Game | undefined> {
-  const mock = getGame(id);
+  const showMock =
+    process.env.SHOW_MOCK_DATA === "true" && process.env.NODE_ENV === "development";
+  const mock = showMock ? getGame(id) : undefined;
   if (mock) return mock;
   if (!isSupabaseConfigured()) return undefined;
   const supabase = await createSupabaseServerClient();
@@ -209,6 +229,7 @@ export async function getDisplayGame(id: string): Promise<Game | undefined> {
       "*, game_scores(opportunity_score, demand_score, growth_score, competition_score, freshness_score, buildability_score, monetization_score, outlier_reason, risks, generated_ideas), roblox_game_metrics(*), roblox_game_snapshots(id, captured_at), tracked_games(tracking_enabled)",
     )
     .or(`id.eq.${id},roblox_universe_id.eq.${id},roblox_place_id.eq.${id}`)
+    .eq("is_archived", false)
     .maybeSingle();
   return data ? mapDatabaseGame(data as unknown as DatabaseGameRow) : undefined;
 }

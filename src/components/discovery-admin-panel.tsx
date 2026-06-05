@@ -30,6 +30,8 @@ function formatNumber(value: number | undefined) {
 export function DiscoveryAdminPanel() {
   const [keyword, setKeyword] = useState("+1 speed");
   const [limit, setLimit] = useState("25");
+  const [minCcu, setMinCcu] = useState("100");
+  const [allowBelowThreshold, setAllowBelowThreshold] = useState(false);
   const [runId, setRunId] = useState<string | null>(null);
   const [results, setResults] = useState<DiscoveryResult[]>([]);
   const [selectedGameIds, setSelectedGameIds] = useState<string[]>([]);
@@ -42,10 +44,16 @@ export function DiscoveryAdminPanel() {
   const selectableIds = useMemo(
     () =>
       results
-        .filter((result) => !(result.already_imported ?? result.alreadyImported))
+        .filter((result) => {
+          const imported = result.already_imported ?? result.alreadyImported;
+          const below =
+            Number(result.active_players ?? result.activePlayers ?? 0) <
+            Number(minCcu || 0);
+          return !imported && (allowBelowThreshold || !below);
+        })
         .map((result) => result.id)
         .filter((id): id is string => Boolean(id)),
-    [results],
+    [allowBelowThreshold, minCcu, results],
   );
   const allSelectableSelected =
     selectableIds.length > 0 &&
@@ -101,9 +109,11 @@ export function DiscoveryAdminPanel() {
     if (!runId || !ids.length) return;
     const payloadBody = {
       discoveryRunId: runId,
-      gameIds: ids,
-      enableTracking,
-    };
+          gameIds: ids,
+          enableTracking,
+          minCcu: Number(minCcu),
+          allowBelowThreshold,
+        };
     if (process.env.NODE_ENV === "development") {
       console.log("[discovery] import payload", payloadBody);
     }
@@ -118,6 +128,7 @@ export function DiscoveryAdminPanel() {
       const payload = (await response.json().catch(() => ({}))) as {
         importedCount?: number;
         failures?: Array<{ error: string }>;
+        skippedBelowCcu?: Array<{ id: string }>;
         error?: string;
       };
       if (!response.ok) {
@@ -125,6 +136,7 @@ export function DiscoveryAdminPanel() {
         throw new Error(payload.error ?? failure ?? "Import failed");
       }
       const failedCount = payload.failures?.length ?? 0;
+      const skippedCount = payload.skippedBelowCcu?.length ?? 0;
       setResults((items) =>
         items.map((item) =>
           item.id && ids.includes(item.id)
@@ -136,6 +148,8 @@ export function DiscoveryAdminPanel() {
       showToast(
         failedCount
           ? `Imported ${payload.importedCount ?? 0} games, ${failedCount} failed.`
+          : skippedCount
+            ? `Imported ${payload.importedCount ?? 0} games, ${skippedCount} skipped below CCU limit.`
           : `Imported ${payload.importedCount ?? 0} games.`,
       );
     } catch (err) {
@@ -178,6 +192,22 @@ export function DiscoveryAdminPanel() {
               <option value="25">25 results</option>
               <option value="50">50 results</option>
             </select>
+            <input
+              value={minCcu}
+              onChange={(event) => setMinCcu(event.target.value)}
+              type="number"
+              min="0"
+              placeholder="Min CCU"
+              className="w-28 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-400"
+            />
+            <label className="flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300">
+              <input
+                type="checkbox"
+                checked={allowBelowThreshold}
+                onChange={(event) => setAllowBelowThreshold(event.target.checked)}
+              />
+              Allow below-threshold imports
+            </label>
             <button
               onClick={discover}
               disabled={Boolean(loading) || !keyword.trim()}
@@ -250,7 +280,12 @@ export function DiscoveryAdminPanel() {
               {results.map((result) => {
                 const id = result.id ?? "";
                 const imported = result.already_imported ?? result.alreadyImported;
-                const selectable = Boolean(id && !imported);
+                const belowCcu =
+                  Number(result.active_players ?? result.activePlayers ?? 0) <
+                  Number(minCcu || 0);
+                const selectable = Boolean(
+                  id && !imported && (allowBelowThreshold || !belowCcu),
+                );
                 return (
                   <tr key={id || result.roblox_universe_id} className="border-t border-slate-800">
                     <td className="px-2 py-3">
@@ -283,6 +318,11 @@ export function DiscoveryAdminPanel() {
                           {imported && (
                             <p className="mt-1 text-[11px] text-emerald-300">
                               Already imported
+                            </p>
+                          )}
+                          {!imported && belowCcu && (
+                            <p className="mt-1 text-[11px] text-amber-300">
+                              Below CCU limit
                             </p>
                           )}
                         </div>

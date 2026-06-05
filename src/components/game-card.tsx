@@ -55,6 +55,11 @@ export const GameCard = memo(function GameCard({
               Imported from: {game.sourceKeyword}
             </span>
           )}
+          {game.discoverySource && (
+            <span className="ml-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-[11px] font-medium text-violet-300">
+              {game.discoverySource.replaceAll("_", " ")}
+            </span>
+          )}
         </div>
         <div className="mb-3">
           <h3 className="truncate font-semibold">{game.title}</h3>

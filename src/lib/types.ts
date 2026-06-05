@@ -91,6 +91,13 @@ export type Game = {
   databaseId?: string;
   dataSource?: "mock" | "real";
   sourceKeyword?: string | null;
+  discoverySource?: string | null;
+  discoveryRank?: number | null;
+  discoveredAt?: string | null;
+  isArchived?: boolean;
+  archivedAt?: string | null;
+  archiveReason?: string | null;
+  lowCcuStreak?: number;
   trackingEnabled?: boolean;
   robloxUniverseId: string;
   robloxPlaceId: string;
@@ -138,6 +145,26 @@ export type RobloxSearchResult = {
   genre: string | null;
   sourceKeyword: string;
   raw: Record<string, unknown>;
+};
+
+export type RobloxDiscoverySource = "top_games" | "trending" | "popular";
+
+export type RobloxDiscoveryGame = {
+  roblox_universe_id: string;
+  roblox_place_id: string;
+  title: string;
+  description: string;
+  creator_name: string;
+  creator_id: string;
+  active_players: number;
+  visits: number;
+  favorites: number;
+  thumbnail_url: string | null;
+  genre: string | null;
+  subgenre: string | null;
+  discovery_source: RobloxDiscoverySource;
+  discovery_rank: number;
+  raw_data: Record<string, unknown>;
 };
 
 export type SavedIdea = GeneratedIdea & {

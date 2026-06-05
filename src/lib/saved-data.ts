@@ -76,9 +76,14 @@ export async function getUserSavedGames(userId?: string): Promise<SavedGame[]> {
         ? game?.game_scores[0]?.opportunity_score
         : game?.game_scores?.opportunity_score;
       if (!game?.id || !game.title) return null;
-      const mockGameId = getGames().find(
-        (item) => item.robloxUniverseId === game.roblox_universe_id,
-      )?.id;
+      const showMock =
+        process.env.SHOW_MOCK_DATA === "true" &&
+        process.env.NODE_ENV === "development";
+      const mockGameId = showMock
+        ? getGames().find(
+            (item) => item.robloxUniverseId === game.roblox_universe_id,
+          )?.id
+        : null;
       return {
         id: row.id,
         gameId: mockGameId ?? game.id,
@@ -150,7 +155,10 @@ export async function getUserSavedIdeas(userId?: string): Promise<SavedIdea[]> {
 export async function ensureGameRecord(
   gameId: string,
 ): Promise<{ databaseId: string; game: Game } | null> {
-  const game = getGame(gameId);
+  const showMock =
+    process.env.SHOW_MOCK_DATA === "true" &&
+    process.env.NODE_ENV === "development";
+  const game = showMock ? getGame(gameId) : undefined;
   const uuidLike =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       gameId,

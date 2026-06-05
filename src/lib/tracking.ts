@@ -1,4 +1,5 @@
 import { generateIdeas } from "./idea-generator";
+import { evaluateLowCcuGame } from "./dataset-pruning";
 import { calculateMetricBundle, type MetricSnapshot } from "./metrics";
 import {
   fetchRobloxGameByUniverseId,
@@ -17,6 +18,7 @@ type GameRow = {
   title: string;
   thumbnail_url: string | null;
   updated_at_roblox: string | null;
+  is_archived?: boolean | null;
 };
 
 type TrackingRow = {
@@ -103,12 +105,13 @@ async function getGameRow(gameId: string) {
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin
     .from("games")
-    .select("id, roblox_universe_id, roblox_place_id, title, thumbnail_url, updated_at_roblox")
+    .select("id, roblox_universe_id, roblox_place_id, title, thumbnail_url, updated_at_roblox, is_archived")
     .eq("id", gameId)
     .maybeSingle();
   if (error) throw error;
   if (!data?.roblox_universe_id)
     throw new Error("Tracking requires a real imported Roblox game.");
+  if (data.is_archived) throw new Error("Archived games are not tracked.");
   return data as GameRow;
 }
 
@@ -314,7 +317,8 @@ export async function collectSnapshotForGame(gameId: string) {
       .eq("game_id", game.id);
 
     const metrics = await calculateMetricsForGame(game.id);
-    return { game: normalized, ...metrics };
+    const pruning = await evaluateLowCcuGame(game.id).catch(() => null);
+    return { game: normalized, pruning, ...metrics };
   } catch (error) {
     console.error("[tracking] Snapshot collection failed", { gameId, error });
     throw error;
@@ -356,17 +360,26 @@ export async function forceCollectSnapshotsForEnabledGames() {
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin
     .from("tracked_games")
-    .select("game_id, tracking_enabled");
+    .select("game_id, tracking_enabled, games(is_archived)");
   if (error) throw error;
 
   const allRows = data ?? [];
-  const rows = allRows.filter((row) => row.tracking_enabled);
+  const rows = allRows.filter((row) => {
+    const game = Array.isArray(row.games) ? row.games[0] : row.games;
+    return row.tracking_enabled && !game?.is_archived;
+  });
+  const skippedArchived = allRows.filter((row) => {
+    const game = Array.isArray(row.games) ? row.games[0] : row.games;
+    return Boolean(game?.is_archived);
+  }).length;
   const failures: Array<{ gameId: string; error: string }> = [];
   let snapshotsCollected = 0;
+  let archivedDueToLowCcu = 0;
 
   for (const row of rows) {
     try {
-      await collectSnapshotForGame(row.game_id);
+      const result = await collectSnapshotForGame(row.game_id);
+      if (result.pruning?.archived) archivedDueToLowCcu += 1;
       snapshotsCollected += 1;
     } catch (error) {
       failures.push({
@@ -386,6 +399,8 @@ export async function forceCollectSnapshotsForEnabledGames() {
   return {
     gamesChecked: allRows.length,
     snapshotsCollected,
+    archivedDueToLowCcu,
+    skippedArchived,
     failures,
     skippedGames: allRows.length - rows.length,
   };

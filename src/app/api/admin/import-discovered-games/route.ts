@@ -22,6 +22,7 @@ type DiscoveredGameRow = {
   roblox_place_id: string | null;
   source_keyword: string | null;
   discovery_runs?: { keyword: string | null } | null;
+  active_players?: number | null;
 };
 
 function pause(ms: number) {
@@ -207,6 +208,8 @@ export async function POST(request: Request) {
     discoveryRunId?: string;
     gameIds?: string[];
     enableTracking?: boolean;
+    minCcu?: number;
+    allowBelowThreshold?: boolean;
   };
   if (!body.discoveryRunId || !Array.isArray(body.gameIds) || !body.gameIds.length) {
     return NextResponse.json(
@@ -216,16 +219,29 @@ export async function POST(request: Request) {
   }
 
   const admin = createSupabaseAdminClient();
+  const { getDatasetSettings } = await import("@/lib/dataset-settings");
+  const settings = await getDatasetSettings();
+  const minCcu = Number.isFinite(Number(body.minCcu))
+    ? Number(body.minCcu)
+    : settings.minImportCcu;
   const { data, error } = await admin
     .from("discovered_games")
-    .select("id, discovery_run_id, roblox_universe_id, roblox_place_id, source_keyword, discovery_runs(keyword)")
+    .select("id, discovery_run_id, roblox_universe_id, roblox_place_id, source_keyword, active_players, discovery_runs(keyword)")
     .eq("discovery_run_id", body.discoveryRunId)
     .in("id", body.gameIds);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const failures: Array<{ id: string; error: string }> = [];
+  const skippedBelowCcu: Array<{ id: string; activePlayers: number }> = [];
   const imported = [];
   for (const row of (data ?? []) as unknown as DiscoveredGameRow[]) {
+    if (!body.allowBelowThreshold && Number(row.active_players ?? 0) < minCcu) {
+      skippedBelowCcu.push({
+        id: row.id,
+        activePlayers: Number(row.active_players ?? 0),
+      });
+      continue;
+    }
     try {
       imported.push(await importOneGame(admin, row, body.enableTracking !== false));
     } catch (error) {
@@ -253,6 +269,7 @@ export async function POST(request: Request) {
     {
       importedCount: imported.length,
       imported,
+      skippedBelowCcu,
       failures,
     },
     { status },

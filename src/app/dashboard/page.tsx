@@ -22,7 +22,10 @@ export default async function DashboardPage() {
   if (user) await ensureProfile(user);
   const games = await getDisplayGames();
   const avg = Math.round(
-    games.reduce((sum, game) => sum + game.score.opportunity, 0) / games.length,
+    games.length
+      ? games.reduce((sum, game) => sum + game.score.opportunity, 0) /
+          games.length
+      : 0,
   );
   const nicheTotals = new Map<string, { count: number; total: number }>();
   for (const game of games) {
@@ -91,9 +94,18 @@ export default async function DashboardPage() {
       </div>
       <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <SavedGamesProvider signedIn={Boolean(user)}>
-          {games.slice(0, 5).map((game) => (
-            <GameCard key={game.id} game={game} signedIn={Boolean(user)} />
-          ))}
+          {games.length ? (
+            games
+              .slice(0, 5)
+              .map((game) => (
+                <GameCard key={game.id} game={game} signedIn={Boolean(user)} />
+              ))
+          ) : (
+            <div className="card p-6 text-sm text-slate-400 md:col-span-2 xl:col-span-5">
+              No real Roblox games imported yet. Use Admin discovery or manual
+              import to start the dataset.
+            </div>
+          )}
         </SavedGamesProvider>
       </div>
       <div className="mt-8 grid gap-5 lg:grid-cols-[1.4fr_1fr]">

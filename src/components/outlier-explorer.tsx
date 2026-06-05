@@ -26,6 +26,8 @@ export function OutlierExplorer({
   const [dataSource, setDataSource] = useState("");
   const [sourceKeyword, setSourceKeyword] = useState("");
   const [trackingStatus, setTrackingStatus] = useState("");
+  const [discoverySource, setDiscoverySource] = useState("");
+  const [archivedStatus, setArchivedStatus] = useState("active");
   const [sort, setSort] = useState("opportunity");
 
   useEffect(() => {
@@ -67,7 +69,10 @@ export function OutlierExplorer({
         (!trackingStatus ||
           (trackingStatus === "enabled"
             ? game.trackingEnabled
-            : !game.trackingEnabled)),
+            : !game.trackingEnabled)) &&
+        (!discoverySource || game.discoverySource === discoverySource) &&
+        (archivedStatus === "all" ||
+          (archivedStatus === "archived" ? game.isArchived : !game.isArchived)),
     );
     return [...filtered].sort((a, b) =>
       sort === "active"
@@ -96,6 +101,8 @@ export function OutlierExplorer({
     dataSource,
     sourceKeyword,
     trackingStatus,
+    discoverySource,
+    archivedStatus,
     sort,
   ]);
 
@@ -217,6 +224,27 @@ export function OutlierExplorer({
             <option value="">All tracking status</option>
             <option value="enabled">Tracking enabled</option>
             <option value="disabled">Not tracking</option>
+          </select>
+          <select
+            value={discoverySource}
+            onChange={(e) => setDiscoverySource(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">All discovery sources</option>
+            <option value="top_games">Top Games</option>
+            <option value="trending">Trending</option>
+            <option value="popular">Popular</option>
+            <option value="keyword">Keyword</option>
+            <option value="manual_import">Manual</option>
+          </select>
+          <select
+            value={archivedStatus}
+            onChange={(e) => setArchivedStatus(e.target.value)}
+            className={inputClass}
+          >
+            <option value="active">Active only</option>
+            <option value="archived">Archived only</option>
+            <option value="all">All archive status</option>
           </select>
           <select
             value={sort}

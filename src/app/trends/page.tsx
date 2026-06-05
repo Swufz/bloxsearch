@@ -9,6 +9,7 @@ import {
   getTopKeywordsByAverageLikeRatio,
 } from "@/lib/trend-analysis";
 import { formatNumber } from "@/lib/utils";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 function GameRows({
   title,
@@ -55,6 +56,12 @@ export default async function TrendsPage() {
     () => [],
   );
   const topRatings = await getTopKeywordsByAverageLikeRatio(8).catch(() => []);
+  const admin = createSupabaseAdminClient();
+  const { data: clusters } = await admin
+    .from("trend_clusters")
+    .select("*")
+    .order("total_active_players", { ascending: false })
+    .limit(8);
   const byAvgSession = games
     .filter((game) => game.metrics?.avgSession1d !== null && game.metrics?.avgSession1d !== undefined)
     .sort((a, b) => (b.metrics?.avgSession1d ?? 0) - (a.metrics?.avgSession1d ?? 0))
@@ -83,6 +90,36 @@ export default async function TrendsPage() {
           accuracy.
         </div>
       )}
+      <section className="card mb-5 p-5">
+        <h2 className="font-semibold">Top trend clusters by active players</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Based on BloxSearch imported and tracked dataset.
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {(clusters ?? []).length ? (
+            (clusters ?? []).map((cluster) => (
+              <Link
+                key={cluster.id}
+                href={`/trends/clusters/${cluster.id}`}
+                className="rounded-lg border border-slate-800 p-3 text-sm hover:bg-slate-800/60"
+              >
+                <p className="font-semibold text-slate-200">{cluster.name}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {cluster.formula_summary}
+                </p>
+                <p className="mt-2 text-xs text-sky-300">
+                  {formatNumber(cluster.total_active_players ?? 0)} active ·{" "}
+                  {cluster.games_count} games
+                </p>
+              </Link>
+            ))
+          ) : (
+            <p className="text-sm text-slate-400">
+              No trend clusters yet. Import and track more real games.
+            </p>
+          )}
+        </div>
+      </section>
       <div className="grid gap-5 xl:grid-cols-2">
         <GameRows
           title="Top games by Avg Session"

@@ -1,6 +1,11 @@
 import { generateIdeas } from "./idea-generator";
 import { scoreGame } from "./scoring";
-import type { Game, RobloxSearchResult } from "./types";
+import type {
+  Game,
+  RobloxDiscoveryGame,
+  RobloxDiscoverySource,
+  RobloxSearchResult,
+} from "./types";
 
 export async function safeFetchWithRetry(
   url: string,
@@ -181,6 +186,139 @@ export async function searchRobloxGamesByKeyword(
       ),
     )
     .filter((item): item is RobloxSearchResult => Boolean(item));
+}
+
+function discoverySortUrls(source: RobloxDiscoverySource, limit: number) {
+  const sorts: Record<RobloxDiscoverySource, string[]> = {
+    top_games: [
+      `https://apis.roblox.com/explore-api/v1/get-sort-content?sessionId=00000000-0000-0000-0000-000000000000&sortId=top-playing-now&limit=${limit}`,
+      `https://games.roblox.com/v1/games/list?model.keyword=&model.sortToken=GameSorts.TopRated&model.maxRows=${limit}`,
+      `https://games.roblox.com/v1/games/list?model.keyword=&model.sortToken=GameSorts.Popular&model.maxRows=${limit}`,
+    ],
+    trending: [
+      `https://apis.roblox.com/explore-api/v1/get-sort-content?sessionId=00000000-0000-0000-0000-000000000000&sortId=top-trending&limit=${limit}`,
+      `https://games.roblox.com/v1/games/list?model.keyword=&model.sortToken=GameSorts.Relevance&model.maxRows=${limit}`,
+      `https://games.roblox.com/v1/games/list?model.keyword=&model.sortToken=GameSorts.PopularInCountry&model.maxRows=${limit}`,
+    ],
+    popular: [
+      `https://apis.roblox.com/explore-api/v1/get-sort-content?sessionId=00000000-0000-0000-0000-000000000000&sortId=top-playing-now&limit=${limit}`,
+      `https://games.roblox.com/v1/games/list?model.keyword=&model.sortToken=GameSorts.Popular&model.maxRows=${limit}`,
+      `https://games.roblox.com/v1/games/list?model.keyword=&model.sortToken=GameSorts.MostEngaging&model.maxRows=${limit}`,
+    ],
+  };
+  return sorts[source];
+}
+
+function unwrapDiscoveryRows(raw: unknown): Record<string, unknown>[] {
+  const data = raw as {
+    games?: Record<string, unknown>[];
+    data?: Record<string, unknown>[];
+    sorts?: Array<{ games?: Record<string, unknown>[] }>;
+    gameSorts?: Array<{ games?: Record<string, unknown>[] }>;
+  };
+  return (
+    data.games ??
+    data.data ??
+    data.sorts?.flatMap((sort) => sort.games ?? []) ??
+    data.gameSorts?.flatMap((sort) => sort.games ?? []) ??
+    []
+  );
+}
+
+export function normalizeRobloxDiscoveryGame(
+  raw: Record<string, unknown>,
+  source: RobloxDiscoverySource,
+  rank: number,
+  thumbnailUrl?: string | null,
+): RobloxDiscoveryGame | null {
+  const universeId = raw.universeId ?? raw.id ?? raw.contentId;
+  const placeId = raw.rootPlaceId ?? raw.placeId;
+  if (!universeId) return null;
+  return {
+    roblox_universe_id: String(universeId),
+    roblox_place_id: placeId ? String(placeId) : "",
+    title: String(raw.name ?? raw.title ?? "Untitled Roblox Experience"),
+    description: String(raw.description ?? ""),
+    creator_name: String(
+      raw.creatorName ??
+        (raw.creator as Record<string, unknown> | undefined)?.name ??
+        "Unknown creator",
+    ),
+    creator_id: String(
+      raw.creatorId ?? (raw.creator as Record<string, unknown> | undefined)?.id ?? "",
+    ),
+    active_players: Number(raw.playerCount ?? raw.playing ?? raw.activePlayers ?? 0),
+    visits: Number(raw.visits ?? 0),
+    favorites: Number(raw.favoritedCount ?? raw.favorites ?? 0),
+    thumbnail_url: thumbnailUrl ?? null,
+    genre: raw.genre ? String(raw.genre) : raw.genre_l1 ? String(raw.genre_l1) : null,
+    subgenre: raw.genre_l2 ? String(raw.genre_l2) : null,
+    discovery_source: source,
+    discovery_rank: rank,
+    raw_data: raw,
+  };
+}
+
+async function fetchRobloxDiscoveryGames(
+  source: RobloxDiscoverySource,
+  limit = 50,
+): Promise<RobloxDiscoveryGame[]> {
+  const safeLimit = Math.min(Math.max(Math.round(limit), 1), 100);
+  let lastError: unknown;
+  for (const url of discoverySortUrls(source, safeLimit)) {
+    try {
+      const raw = await safeFetchWithRetry(url, 1);
+      const rows = unwrapDiscoveryRows(raw).slice(0, safeLimit);
+      if (!rows.length) continue;
+      const icons = await fetchRobloxGameIcons(
+        rows
+          .map((row) => String(row.universeId ?? row.id ?? row.contentId ?? ""))
+          .filter(Boolean),
+      );
+      return rows
+        .map((row, index) =>
+          normalizeRobloxDiscoveryGame(
+            row,
+            source,
+            index + 1,
+            icons.get(String(row.universeId ?? row.id ?? row.contentId ?? "")),
+          ),
+        )
+        .filter((item): item is RobloxDiscoveryGame => Boolean(item));
+    } catch (error) {
+      lastError = error;
+      if (
+        error instanceof Error &&
+        error.message.toLowerCase().includes("429")
+      ) {
+        throw new Error("Roblox rate limited this request. Try again later.");
+      }
+    }
+  }
+  console.error("[roblox] Top-games discovery failed", { source, lastError });
+  throw new Error(
+    "Roblox top-games discovery endpoint unavailable. Use keyword discovery or manual URL import.",
+  );
+}
+
+export function fetchRobloxTopGames(limit?: number) {
+  return fetchRobloxDiscoveryGames("top_games", limit);
+}
+
+export function fetchRobloxTrendingGames(limit?: number) {
+  return fetchRobloxDiscoveryGames("trending", limit);
+}
+
+export function fetchRobloxPopularGames(limit?: number) {
+  return fetchRobloxDiscoveryGames("popular", limit);
+}
+
+export async function discoverTopGamesPipeline(options: {
+  source?: RobloxDiscoverySource;
+  limit?: number;
+}) {
+  const source = options.source ?? "top_games";
+  return fetchRobloxDiscoveryGames(source, options.limit ?? 50);
 }
 
 export async function discoverAndPreviewGames(keyword: string, limit: number) {
