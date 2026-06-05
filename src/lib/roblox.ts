@@ -185,6 +185,8 @@ export function normalizeRobloxGameData(
     lastFetchedAt: new Date().toISOString(),
     tags: inferred.tags,
     niche: inferred.niche,
+    genre: String(raw.genre_l1 ?? raw.genre ?? inferred.niche),
+    subgenre: String(raw.genre_l2 ?? ""),
     mechanics: inferred.mechanics,
     monetizationTags: ["cosmetics", "vip"],
   };

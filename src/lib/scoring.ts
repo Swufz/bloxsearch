@@ -14,8 +14,18 @@ export function scoreGame(
   const updateAge = daysAgo(game.updatedAtRoblox);
   const demand = clamp(Math.log10(game.activePlayers + 10) * 24 + Math.log10(game.visits + 100) * 7 - 45);
   const velocity = game.activePlayers / age + game.visits / age / 1500;
-  const growth = clamp(Math.log10(velocity + 1) * 28);
-  const freshness = clamp(105 - Math.log10(age + 1) * 35 - Math.min(updateAge, 90) * 0.25);
+  const metrics = game.metrics;
+  const metricGrowth =
+    metrics?.momentum1d !== null && metrics?.momentum1d !== undefined
+      ? 50 + metrics.momentum1d
+      : metrics?.visitGrowth1d
+        ? Math.log10(metrics.visitGrowth1d + 10) * 13
+        : null;
+  const growth = clamp(metricGrowth ?? Math.log10(velocity + 1) * 28);
+  const freshness = clamp(
+    metrics?.updateFreshnessScore ??
+      105 - Math.log10(age + 1) * 35 - Math.min(updateAge, 90) * 0.25,
+  );
   const averageSimilarActive = similarActivePlayers.length
     ? similarActivePlayers.reduce((sum, value) => sum + value, 0) /
       similarActivePlayers.length
@@ -31,7 +41,25 @@ export function scoreGame(
   const mechanics = game.mechanics.map((m) => m.toLowerCase());
   const buildability = clamp(58 + mechanics.filter((m) => easyMechanics.includes(m)).length * 15 - mechanics.filter((m) => hardMechanics.includes(m)).length * 25);
   const monetization = clamp(42 + game.monetizationTags.filter((m) => strongMonetization.includes(m.toLowerCase())).length * 12);
-  const opportunity = clamp(demand * 0.25 + growth * 0.25 + freshness * 0.15 + competition * 0.15 + buildability * 0.1 + monetization * 0.1);
+  const engagement =
+    metrics?.avgSession1d !== null && metrics?.avgSession1d !== undefined
+      ? clamp(metrics.avgSession1d * 5)
+      : metrics?.avgCcu1d
+        ? clamp(Math.log10(metrics.avgCcu1d + 10) * 22)
+        : clamp(game.likeRatio * 0.7);
+  const rating = clamp(
+    game.likeRatio * 0.75 +
+      Math.log10(game.upvotes + game.downvotes + 10) * 5 +
+      (game.visits > 0 ? (game.favorites / game.visits) * 500 : 0),
+  );
+  const opportunity = clamp(
+    demand * 0.25 +
+      growth * 0.2 +
+      engagement * 0.2 +
+      freshness * 0.1 +
+      competition * 0.15 +
+      rating * 0.1,
+  );
 
   const reasons = [
     age < 120 && game.activePlayers > 1000 ? "High active-player count for a young game." : "",

@@ -9,6 +9,7 @@ import {
   Bookmark,
   Menu,
   Search,
+  TrendingUp,
   Settings,
   X,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import { AuthActions } from "./auth-actions";
 const links = [
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { href: "/outliers", label: "Outlier Finder", icon: Search },
+  { href: "/trends", label: "Trends", icon: TrendingUp },
   { href: "/ideas", label: "Saved", icon: Bookmark },
   { href: "/methodology", label: "Scoring Methodology", icon: BookOpen },
   { href: "/admin", label: "Admin", icon: Settings },

@@ -1,6 +1,7 @@
 import { mockGames } from "./mock-data";
 import { generateIdeas } from "./idea-generator";
 import { scoreGame } from "./scoring";
+import { mapMetricsRow } from "./tracking";
 import {
   createSupabaseServerClient,
   isSupabaseConfigured,
@@ -38,6 +39,8 @@ type DatabaseGameRow = {
   last_fetched_at: string | null;
   tags: string[] | null;
   niche: string | null;
+  genre?: string | null;
+  subgenre?: string | null;
   mechanics: string[] | null;
   monetization_tags: string[] | null;
   game_scores?:
@@ -66,7 +69,8 @@ type DatabaseGameRow = {
         generated_ideas: unknown;
       }>
     | null;
-  game_snapshots?: Array<{ id: string }> | null;
+  roblox_game_metrics?: Record<string, unknown> | Record<string, unknown>[] | null;
+  roblox_game_snapshots?: Array<{ id: string; captured_at?: string | null }> | null;
 };
 
 export function mapDatabaseGame(row: DatabaseGameRow): Game {
@@ -108,12 +112,23 @@ export function mapDatabaseGame(row: DatabaseGameRow): Game {
     lastFetchedAt: row.last_fetched_at ?? new Date().toISOString(),
     tags: row.tags?.length ? row.tags : ["Roblox"],
     niche: row.niche ?? "Roblox",
+    genre: row.genre ?? row.niche ?? "Roblox",
+    subgenre: row.subgenre ?? null,
     mechanics: row.mechanics?.length ? row.mechanics : ["progression"],
     monetizationTags: row.monetization_tags?.length
       ? row.monetization_tags
       : ["cosmetics"],
-    snapshotCount: row.game_snapshots?.length ?? 0,
+    snapshotCount: row.roblox_game_snapshots?.length ?? 0,
   };
+  const metricsRow = Array.isArray(row.roblox_game_metrics)
+    ? row.roblox_game_metrics[0]
+    : row.roblox_game_metrics;
+  const snapshots = row.roblox_game_snapshots ?? [];
+  const sortedSnapshots = [...snapshots].sort(
+    (a, b) =>
+      +new Date(String(a.captured_at ?? 0)) -
+      +new Date(String(b.captured_at ?? 0)),
+  );
   const fallbackScore = scoreGame(base);
   const ideas = Array.isArray(scoreRow?.generated_ideas)
     ? scoreRow.generated_ideas
@@ -133,6 +148,13 @@ export function mapDatabaseGame(row: DatabaseGameRow): Game {
       growthEstimated: true,
     },
     ideas: ideas as Game["ideas"],
+    metrics: metricsRow ? mapMetricsRow(metricsRow) : null,
+    trackingSummary: {
+      count: snapshots.length,
+      firstSnapshotAt: sortedSnapshots[0]?.captured_at ?? null,
+      latestSnapshotAt:
+        sortedSnapshots[sortedSnapshots.length - 1]?.captured_at ?? null,
+    },
   };
 }
 
@@ -142,7 +164,7 @@ export async function getImportedGames(): Promise<Game[]> {
   const { data, error } = await supabase
     .from("games")
     .select(
-      "*, game_scores(opportunity_score, demand_score, growth_score, competition_score, freshness_score, buildability_score, monetization_score, outlier_reason, risks, generated_ideas), game_snapshots(id)",
+      "*, game_scores(opportunity_score, demand_score, growth_score, competition_score, freshness_score, buildability_score, monetization_score, outlier_reason, risks, generated_ideas), roblox_game_metrics(*), roblox_game_snapshots(id, captured_at)",
     )
     .order("last_fetched_at", { ascending: false });
   if (error) {
@@ -175,7 +197,7 @@ export async function getDisplayGame(id: string): Promise<Game | undefined> {
   const { data } = await supabase
     .from("games")
     .select(
-      "*, game_scores(opportunity_score, demand_score, growth_score, competition_score, freshness_score, buildability_score, monetization_score, outlier_reason, risks, generated_ideas), game_snapshots(id)",
+      "*, game_scores(opportunity_score, demand_score, growth_score, competition_score, freshness_score, buildability_score, monetization_score, outlier_reason, risks, generated_ideas), roblox_game_metrics(*), roblox_game_snapshots(id, captured_at)",
     )
     .or(`id.eq.${id},roblox_universe_id.eq.${id},roblox_place_id.eq.${id}`)
     .maybeSingle();

@@ -5,6 +5,7 @@ import {
   CalendarDays,
   CircleUserRound,
   Heart,
+  Star,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -22,6 +23,10 @@ export const GameCard = memo(function GameCard({
   signedIn?: boolean;
   initiallySaved?: boolean;
 }) {
+  const avgSession =
+    game.metrics?.avgSession1d ?? game.metrics?.avgSession7d ?? null;
+  const avgCcu = game.metrics?.avgCcu1d ?? null;
+  const momentum = game.metrics?.momentum1d ?? game.metrics?.momentum7d ?? null;
   return (
     <article className="card overflow-hidden transition hover:-translate-y-0.5 hover:border-slate-600">
       <div className="relative aspect-video overflow-hidden bg-slate-900">
@@ -67,8 +72,27 @@ export const GameCard = memo(function GameCard({
             {game.likeRatio}% liked
           </span>
           <span className="flex items-center gap-1.5">
+            <Star size={14} className="text-yellow-300" />
+            {formatNumber(game.favorites)} favorites
+          </span>
+          <span className="flex items-center gap-1.5">
             <CalendarDays size={14} />
-            {daysAgo(game.createdAtRoblox)} days old
+            Updated {daysAgo(game.updatedAtRoblox)}d ago
+          </span>
+          <span
+            className="flex items-center gap-1.5"
+            title="Calculated from tracked player activity and visit growth."
+          >
+            Avg Session:{" "}
+            {avgSession === null ? "Not enough data" : `${avgSession}m`}
+          </span>
+          <span className="flex items-center gap-1.5">
+            Avg CCU 1d:{" "}
+            {avgCcu === null ? "Not enough data" : formatNumber(avgCcu)}
+          </span>
+          <span className="flex items-center gap-1.5">
+            Momentum:{" "}
+            {momentum === null ? "Not enough data" : `${momentum}%`}
           </span>
         </div>
         <div className="my-4 flex flex-wrap gap-1.5">

@@ -9,10 +9,12 @@ import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { AdminActions } from "@/components/admin-actions";
 import { ImportRobloxGameForm } from "@/components/import-roblox-game-form";
+import { TrackingAdminPanel } from "@/components/tracking-admin-panel";
 import { getCurrentUser } from "@/lib/auth";
 import { getCollectionLogs, getGames, getImportedGames } from "@/lib/data";
 import { isMockMode } from "@/lib/mode";
 import { getTopKeywordsByActivePlayers } from "@/lib/trend-analysis";
+import { getTrackingAdminSummary } from "@/lib/tracking";
 
 export default async function AdminPage() {
   const logs = getCollectionLogs();
@@ -28,6 +30,16 @@ export default async function AdminPage() {
     getImportedGames(),
     getTopKeywordsByActivePlayers(6).catch(() => []),
   ]);
+  const trackingSummary = await getTrackingAdminSummary().catch(() => ({
+    games: [],
+    stats: {
+      trackedGamesCount: 0,
+      snapshotsCount: 0,
+      gamesWith1dMetrics: 0,
+      gamesWith7dMetrics: 0,
+      latestSnapshotAt: null,
+    },
+  }));
   const mockGames = getGames();
   return (
     <AppShell
@@ -110,6 +122,10 @@ export default async function AdminPage() {
             ))}
           </div>
         </section>
+        <TrackingAdminPanel
+          games={trackingSummary.games}
+          stats={trackingSummary.stats}
+        />
         <section className="card p-6 lg:col-span-2">
           <h2 className="font-semibold">View top detected keywords</h2>
           <p className="mt-2 text-xs text-slate-500">

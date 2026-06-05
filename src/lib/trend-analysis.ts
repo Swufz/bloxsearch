@@ -182,6 +182,54 @@ export async function getTopKeywordsByAverageLikeRatio(limit = 10) {
     .slice(0, limit);
 }
 
+export async function getTopKeywordsByAverageAvgSession(limit = 10) {
+  const { createSupabaseAdminClient } = await import("./supabase/admin");
+  const admin = createSupabaseAdminClient();
+  const [{ data: signals, error: signalError }, { data: metrics, error: metricError }] =
+    await Promise.all([
+      admin.from("keyword_signals").select("game_id, keyword, category"),
+      admin.from("roblox_game_metrics").select("game_id, avg_session_1d, avg_session_7d"),
+    ]);
+  if (signalError || metricError) {
+    console.error("[keyword-signals] Failed to fetch avg session keywords", {
+      signalError,
+      metricError,
+    });
+    return [];
+  }
+  const metricByGame = new Map(
+    (metrics ?? []).map((row) => [
+      String(row.game_id),
+      Number(row.avg_session_1d ?? row.avg_session_7d ?? 0),
+    ]),
+  );
+  const totals = new Map<
+    string,
+    { keyword: string; category: string; totalAvgSession: number; games: number }
+  >();
+  for (const signal of signals ?? []) {
+    const avgSession = metricByGame.get(String(signal.game_id));
+    if (!avgSession) continue;
+    const key = `${signal.category}:${signal.keyword}`;
+    const current = totals.get(key) ?? {
+      keyword: String(signal.keyword),
+      category: String(signal.category),
+      totalAvgSession: 0,
+      games: 0,
+    };
+    current.totalAvgSession += avgSession;
+    current.games += 1;
+    totals.set(key, current);
+  }
+  return [...totals.values()]
+    .map((item) => ({
+      ...item,
+      averageAvgSession: item.games ? item.totalAvgSession / item.games : 0,
+    }))
+    .sort((a, b) => b.averageAvgSession - a.averageAvgSession)
+    .slice(0, limit);
+}
+
 export async function getTopKeywordCombinations(limit = 10) {
   const { createSupabaseAdminClient } = await import("./supabase/admin");
   const admin = createSupabaseAdminClient();

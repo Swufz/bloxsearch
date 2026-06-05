@@ -5,11 +5,27 @@ import { isMockMode } from "@/lib/mode";
 const sections = [
   {
     title: "What BloxSearch Can Measure",
-    body: "BloxSearch currently uses public Roblox data and imported games: active players, visits, favorites, votes, like ratio, public descriptions, update dates, tags, detected mechanics, and stored snapshots.",
+    body: "BloxSearch currently uses public Roblox data and imported games: players/CCU, visits, favorites, votes, like ratio, created date, updated date, genre, subgenre when available, public descriptions, tags, detected mechanics, and BloxSearch snapshots.",
   },
   {
     title: "What BloxSearch Cannot Measure Yet",
-    body: "BloxSearch does not yet have access to private retention, revenue, conversion, session-time, payer behavior, or ad-spend analytics unless a creator connects their own data.",
+    body: "BloxSearch does not yet have access to private retention, revenue, conversion, payer behavior, ad-spend analytics, or Creator Dashboard analytics unless a creator connects their own data in a future Creator Diagnosis Mode.",
+  },
+  {
+    title: "Avg Session",
+    body: "BloxSearch calculates Avg Session from tracked public player activity and visit growth. It estimates player-minutes from CCU snapshots and divides that by new visits during the same period: total player-minutes / new visits.",
+  },
+  {
+    title: "Avg CCU",
+    body: "Formula: average active_players across snapshots inside the selected window, such as 1d, 7d, or 14d.",
+  },
+  {
+    title: "Momentum",
+    body: "Formula: ((average CCU in the current period - average CCU in the previous matching period) / previous average CCU) * 100. If the previous period has no data, momentum is not shown.",
+  },
+  {
+    title: "Visit Growth",
+    body: "Formula: visits at the end of the window minus visits at the start of the window. It requires at least two snapshots.",
   },
   {
     title: "Demand Score",
@@ -17,11 +33,11 @@ const sections = [
   },
   {
     title: "Growth Score",
-    body: "Formula: active players divided by game age plus visits per day, log-scaled to 0-100. If only one snapshot exists, growth is estimated from current public stats rather than proven history.",
+    body: "Formula: tracked momentum and visit growth when available. If only one snapshot exists, growth falls back to current active players and visits per day and is marked low confidence.",
   },
   {
     title: "Freshness Score",
-    body: "Formula: newer games score higher, recent updates help, and games older than 90 days lose freshness unless update recency offsets it. Inputs: created_at_roblox and updated_at_roblox.",
+    body: "Formula: updated within 1 day = 100, within 3 days = 85, within 7 days = 70, within 14 days = 50, within 30 days = 30, older = 10.",
   },
   {
     title: "Competition Score",
@@ -37,7 +53,7 @@ const sections = [
   },
   {
     title: "Idea Potential Score",
-    body: "Formula: combines the source opportunity signal, detected trend formula, build difficulty, differentiation from the source game, monetization fit, and data confidence. It is a research estimate, not a guarantee.",
+    body: "Formula: Demand 25%, Growth 20%, Engagement 20%, Freshness 10%, Competition Gap 15%, Rating/Satisfaction 10%. Engagement uses Avg Session when available and never invents it when snapshots are insufficient.",
   },
   {
     title: "Confidence Levels",

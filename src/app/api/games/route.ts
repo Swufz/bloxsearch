@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { getGames } from "@/lib/data";
+import { getDisplayGames } from "@/lib/data";
 import { isMockMode } from "@/lib/mode";
 
 export async function GET() {
+  const games = await getDisplayGames();
   return NextResponse.json(
-    { data: getGames() },
+    { data: games },
     {
       headers: isMockMode()
         ? {

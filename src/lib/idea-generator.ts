@@ -36,7 +36,7 @@ export function generateIdeas(
   game: Pick<
     Game,
     "title" | "description" | "niche" | "mechanics" | "monetizationTags" | "tags"
-  >,
+  > & { activePlayers?: number; likeRatio?: number; metrics?: Game["metrics"] },
 ): GeneratedIdea[] {
   const formula = analyzeTrendFormula(game);
   const monetization = game.monetizationTags.length
@@ -79,6 +79,21 @@ export function generateIdeas(
             : "Higher scope could slow launch unless the first world is tightly constrained.",
       dataSignals: [
         `Based on the current imported dataset, the source game shows the formula ${formula.formulaSummary}.`,
+        game.activePlayers
+          ? `High CCU signal: ${game.activePlayers.toLocaleString()} current active players.`
+          : "Current CCU was not available for this idea.",
+        game.metrics?.avgSession1d
+          ? `Avg Session 1d: ${game.metrics.avgSession1d} minutes from tracked snapshots.`
+          : "Avg Session is not available yet; track this game longer to measure engagement.",
+        game.metrics?.visitGrowth1d
+          ? `Visit growth 1d: ${game.metrics.visitGrowth1d.toLocaleString()} new visits.`
+          : "Visit growth needs multiple snapshots before it becomes meaningful.",
+        game.likeRatio
+          ? `Rating signal: ${game.likeRatio}% like ratio.`
+          : "Rating signal was not available.",
+        game.metrics?.updateFreshnessScore
+          ? `Update freshness score: ${game.metrics.updateFreshnessScore}.`
+          : "Update freshness uses public updated date until snapshot history grows.",
         `${formula.growthMechanic} and ${formula.goalFormat} are detected from public title, description, tags, and mechanics.`,
         formula.monetizationSignals.length
           ? `Monetization clues detected: ${formula.monetizationSignals.join(", ")}.`

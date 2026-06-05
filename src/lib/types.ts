@@ -13,6 +13,38 @@ export type ScoreBreakdown = {
 
 export type ConfidenceLevel = "Low" | "Medium" | "High";
 
+export type RobloxGameMetrics = {
+  avgSession1d: number | null;
+  avgSession7d: number | null;
+  avgSession14d: number | null;
+  avgCcu1d: number | null;
+  avgCcu7d: number | null;
+  avgCcu14d: number | null;
+  momentum1d: number | null;
+  momentum7d: number | null;
+  momentum14d: number | null;
+  visitGrowth1d: number;
+  visitGrowth7d: number;
+  visitGrowth14d: number;
+  favoriteGrowth1d: number;
+  favoriteGrowth7d: number;
+  ratingMovement1d: number | null;
+  ratingMovement7d: number | null;
+  updateFreshnessScore: number;
+  globalRank: number | null;
+  rankShift1d: number | null;
+  rankShift7d: number | null;
+  genreRank: number | null;
+  confidenceLevel: ConfidenceLevel;
+  calculatedAt: string;
+};
+
+export type RobloxGameSnapshotSummary = {
+  count: number;
+  firstSnapshotAt: string | null;
+  latestSnapshotAt: string | null;
+};
+
 export type TrendAnalysis = {
   formulaSummary: string;
   growthMechanic: string;
@@ -80,11 +112,15 @@ export type Game = {
   lastFetchedAt: string;
   tags: string[];
   niche: string;
+  genre?: string | null;
+  subgenre?: string | null;
   mechanics: string[];
   monetizationTags: string[];
   score: ScoreBreakdown;
   ideas: GeneratedIdea[];
   snapshotCount?: number;
+  metrics?: RobloxGameMetrics | null;
+  trackingSummary?: RobloxGameSnapshotSummary | null;
 };
 
 export type SavedIdea = GeneratedIdea & {

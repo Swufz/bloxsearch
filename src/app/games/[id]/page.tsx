@@ -46,6 +46,17 @@ export default async function GamePage({
   const importedRealCount = allGames.filter(
     (item) => item.dataSource === "real",
   ).length;
+  const metricCards = [
+    ["Avg Session 1d", game.metrics?.avgSession1d ? `${game.metrics.avgSession1d} min` : "Not enough data"],
+    ["Avg Session 7d", game.metrics?.avgSession7d ? `${game.metrics.avgSession7d} min` : "Not enough data"],
+    ["Avg CCU 1d", game.metrics?.avgCcu1d ? formatNumber(game.metrics.avgCcu1d) : "Not enough data"],
+    ["Avg CCU 7d", game.metrics?.avgCcu7d ? formatNumber(game.metrics.avgCcu7d) : "Not enough data"],
+    ["Momentum 1d", game.metrics?.momentum1d !== null && game.metrics?.momentum1d !== undefined ? `${game.metrics.momentum1d}%` : "Not enough data"],
+    ["Visit Growth 1d", formatNumber(game.metrics?.visitGrowth1d ?? 0)],
+    ["Visit Growth 7d", formatNumber(game.metrics?.visitGrowth7d ?? 0)],
+    ["Favorite Growth 7d", formatNumber(game.metrics?.favoriteGrowth7d ?? 0)],
+    ["Update Freshness", String(game.metrics?.updateFreshnessScore ?? "Not enough data")],
+  ];
   return (
     <AppShell
       title="Game Analysis"
@@ -204,6 +215,65 @@ export default async function GamePage({
                   only one snapshot exists.
                 </p>
               </div>
+            </section>
+            <section className="card p-6">
+              <h2 className="font-semibold">Tracked public metrics</h2>
+              <p className="mt-2 text-xs text-slate-500">
+                Avg Session is calculated from tracked player activity and
+                visit growth.
+              </p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {metricCards.map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="rounded-lg border border-slate-800 bg-slate-900/40 p-3"
+                  >
+                    <p className="text-[11px] text-slate-500">{label}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-200">
+                      {value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+            <section className="card p-6">
+              <h2 className="font-semibold">Tracking confidence</h2>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {[
+                  ["Snapshot count", String(game.trackingSummary?.count ?? 0)],
+                  [
+                    "First snapshot",
+                    game.trackingSummary?.firstSnapshotAt
+                      ? formatDate(game.trackingSummary.firstSnapshotAt)
+                      : "None yet",
+                  ],
+                  [
+                    "Latest snapshot",
+                    game.trackingSummary?.latestSnapshotAt
+                      ? formatDate(game.trackingSummary.latestSnapshotAt)
+                      : "None yet",
+                  ],
+                  [
+                    "Confidence",
+                    game.metrics?.confidenceLevel ?? "Low",
+                  ],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="rounded-lg border border-slate-800 bg-slate-900/40 p-3"
+                  >
+                    <p className="text-[11px] text-slate-500">{label}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-200">
+                      {value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-4 text-xs leading-5 text-slate-500">
+                Low confidence usually means too few snapshots or not enough
+                coverage of the requested time window. Avg Session requires at
+                least two snapshots and positive visit growth.
+              </p>
             </section>
             <section className="card p-6">
               <div className="flex items-center justify-between">

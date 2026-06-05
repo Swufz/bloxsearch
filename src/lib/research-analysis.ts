@@ -30,6 +30,19 @@ export function getWorkingReasons(game: Game, allGames: Game[]) {
           : "Vote counts are not available yet, so approval confidence is low.",
     },
     {
+      title: "Avg Session",
+      text: game.metrics?.avgSession1d
+        ? `Avg Session 1d is ${game.metrics.avgSession1d} minutes, calculated from tracked player activity and visit growth.`
+        : "Avg Session is not available yet because BloxSearch needs at least 2 snapshots with visit growth. Once tracking runs for 24h, BloxSearch can estimate session length from player-minutes and visit growth.",
+    },
+    {
+      title: "Tracked growth",
+      text:
+        game.metrics?.visitGrowth1d || game.metrics?.momentum1d
+          ? `Recent tracking shows ${formatNumber(game.metrics.visitGrowth1d)} visit growth in 1d and ${game.metrics.momentum1d ?? "not enough data"}% momentum.`
+          : "Visit growth and momentum need multiple snapshots before they become meaningful.",
+    },
+    {
       title: "Clear trend formula",
       text: `${trend.formulaSummary}. This is detected from title, description, tags, and mechanics.`,
     },
@@ -106,7 +119,9 @@ export function buildScoreExplanations(game: Game, allGames: Game[]): ScoreExpla
       why: [
         `Game was created ${metrics.ageDays} days ago.`,
         `Last updated ${metrics.updatedDaysAgo} days ago.`,
-        "Newer games score higher, but recent updates help.",
+        game.metrics?.updateFreshnessScore
+          ? `Tracked update freshness score: ${game.metrics.updateFreshnessScore}.`
+          : "Newer games score higher, but recent updates help.",
       ],
       inputs: ["created_at_roblox", "updated_at_roblox"],
       formula: "Created recently = higher score. Updated recently = bonus. Older than 90 days lowers freshness unless updates are frequent.",
