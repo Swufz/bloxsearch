@@ -2,16 +2,17 @@ import {
   Activity,
   CheckCircle2,
   Database,
-  RefreshCw,
   Server,
   Trash2,
 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { AdminActions } from "@/components/admin-actions";
 import { ImportRobloxGameForm } from "@/components/import-roblox-game-form";
 import { getCurrentUser } from "@/lib/auth";
-import { getCollectionLogs, getGames } from "@/lib/data";
+import { getCollectionLogs, getGames, getImportedGames } from "@/lib/data";
 import { isMockMode } from "@/lib/mode";
+import { getTopKeywordsByActivePlayers } from "@/lib/trend-analysis";
 
 export default async function AdminPage() {
   const logs = getCollectionLogs();
@@ -23,6 +24,11 @@ export default async function AdminPage() {
     .filter(Boolean);
   if (!mockMode && !admins.includes(user?.email?.toLowerCase() ?? ""))
     redirect("/dashboard");
+  const [importedGames, topKeywords] = await Promise.all([
+    getImportedGames(),
+    getTopKeywordsByActivePlayers(6).catch(() => []),
+  ]);
+  const mockGames = getGames();
   return (
     <AppShell
       title="Admin & Data Tools"
@@ -33,8 +39,9 @@ export default async function AdminPage() {
       <div className="grid gap-4 md:grid-cols-3">
         {[
           ["System status", "Operational", Server],
-          ["Data mode", "Mock Roblox data", Database],
-          ["Games ready", String(getGames().length), Activity],
+          ["Dataset size", String(importedGames.length + mockGames.length), Database],
+          ["Imported real games", String(importedGames.length), Activity],
+          ["Mock games", String(mockGames.length), Activity],
         ].map(([label, value, Icon]) => {
           const I = Icon as typeof Server;
           return (
@@ -59,15 +66,7 @@ export default async function AdminPage() {
                 POST /api/admin/seed
               </span>
             </button>
-            <button className="flex w-full items-center justify-between rounded-lg border border-slate-700 px-4 py-3 text-left text-sm hover:bg-slate-800">
-              <span className="flex items-center gap-2">
-                <RefreshCw size={15} className="text-sky-400" />
-                Score all games
-              </span>
-              <span className="text-xs text-slate-500">
-                POST /api/admin/score-games
-              </span>
-            </button>
+            <AdminActions />
             <div className="rounded-lg border border-slate-700 p-3">
               <label className="text-xs text-slate-400">
                 Fetch one Roblox universe ID
@@ -109,6 +108,41 @@ export default async function AdminPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+        <section className="card p-6 lg:col-span-2">
+          <h2 className="font-semibold">View top detected keywords</h2>
+          <p className="mt-2 text-xs text-slate-500">
+            Based only on imported games in BloxSearch, not global Roblox
+            trends.
+          </p>
+          <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {topKeywords.length ? (
+              topKeywords.map((keyword) => (
+                <div
+                  key={`${keyword.category}:${keyword.keyword}`}
+                  className="rounded-lg border border-slate-800 bg-slate-900/40 p-3"
+                >
+                  <p className="text-sm font-semibold text-slate-200">
+                    {keyword.keyword}
+                  </p>
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    {keyword.category.replaceAll("_", " ")} · {keyword.games}{" "}
+                    games
+                  </p>
+                  <p className="mt-2 text-xs text-slate-400">
+                    {keyword.activePlayers.toLocaleString()} total active
+                    players · {Math.round(keyword.averageLikeRatio * 10) / 10}%
+                    avg like ratio
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-slate-400">
+                No keyword signals yet. Import or refresh a real game, then run
+                Recalculate keyword signals.
+              </p>
+            )}
           </div>
         </section>
       </div>

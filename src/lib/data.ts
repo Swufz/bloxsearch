@@ -66,6 +66,7 @@ type DatabaseGameRow = {
         generated_ideas: unknown;
       }>
     | null;
+  game_snapshots?: Array<{ id: string }> | null;
 };
 
 export function mapDatabaseGame(row: DatabaseGameRow): Game {
@@ -111,6 +112,7 @@ export function mapDatabaseGame(row: DatabaseGameRow): Game {
     monetizationTags: row.monetization_tags?.length
       ? row.monetization_tags
       : ["cosmetics"],
+    snapshotCount: row.game_snapshots?.length ?? 0,
   };
   const fallbackScore = scoreGame(base);
   const ideas = Array.isArray(scoreRow?.generated_ideas)
@@ -140,7 +142,7 @@ export async function getImportedGames(): Promise<Game[]> {
   const { data, error } = await supabase
     .from("games")
     .select(
-      "*, game_scores(opportunity_score, demand_score, growth_score, competition_score, freshness_score, buildability_score, monetization_score, outlier_reason, risks, generated_ideas)",
+      "*, game_scores(opportunity_score, demand_score, growth_score, competition_score, freshness_score, buildability_score, monetization_score, outlier_reason, risks, generated_ideas), game_snapshots(id)",
     )
     .order("last_fetched_at", { ascending: false });
   if (error) {
@@ -173,7 +175,7 @@ export async function getDisplayGame(id: string): Promise<Game | undefined> {
   const { data } = await supabase
     .from("games")
     .select(
-      "*, game_scores(opportunity_score, demand_score, growth_score, competition_score, freshness_score, buildability_score, monetization_score, outlier_reason, risks, generated_ideas)",
+      "*, game_scores(opportunity_score, demand_score, growth_score, competition_score, freshness_score, buildability_score, monetization_score, outlier_reason, risks, generated_ideas), game_snapshots(id)",
     )
     .or(`id.eq.${id},roblox_universe_id.eq.${id},roblox_place_id.eq.${id}`)
     .maybeSingle();

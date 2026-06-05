@@ -5,14 +5,29 @@ const easyMechanics = ["obby", "clicker", "tycoon", "simulator", "rng", "collect
 const hardMechanics = ["advanced combat", "battlegrounds", "large-scale rpg", "roleplay world"];
 const strongMonetization = ["pets", "boosts", "vip", "cosmetics", "rebirths", "spins", "crates", "premium areas", "skip-stage"];
 
-export function scoreGame(game: Omit<Game, "score" | "ideas">, nicheCount = 4): ScoreBreakdown {
+export function scoreGame(
+  game: Omit<Game, "score" | "ideas">,
+  nicheCount = 4,
+  similarActivePlayers: number[] = [],
+): ScoreBreakdown {
   const age = daysAgo(game.createdAtRoblox);
   const updateAge = daysAgo(game.updatedAtRoblox);
   const demand = clamp(Math.log10(game.activePlayers + 10) * 24 + Math.log10(game.visits + 100) * 7 - 45);
   const velocity = game.activePlayers / age + game.visits / age / 1500;
   const growth = clamp(Math.log10(velocity + 1) * 28);
   const freshness = clamp(105 - Math.log10(age + 1) * 35 - Math.min(updateAge, 90) * 0.25);
-  const competition = clamp(88 - nicheCount * 7 + Math.min(game.activePlayers / 2000, 12));
+  const averageSimilarActive = similarActivePlayers.length
+    ? similarActivePlayers.reduce((sum, value) => sum + value, 0) /
+      similarActivePlayers.length
+    : 0;
+  const competition = similarActivePlayers.length
+    ? clamp(
+        82 -
+          similarActivePlayers.length * 8 -
+          Math.log10(averageSimilarActive + 10) * 7 +
+          Math.min(game.activePlayers / 5000, 8),
+      )
+    : clamp(88 - nicheCount * 7 + Math.min(game.activePlayers / 2000, 12));
   const mechanics = game.mechanics.map((m) => m.toLowerCase());
   const buildability = clamp(58 + mechanics.filter((m) => easyMechanics.includes(m)).length * 15 - mechanics.filter((m) => hardMechanics.includes(m)).length * 25);
   const monetization = clamp(42 + game.monetizationTags.filter((m) => strongMonetization.includes(m.toLowerCase())).length * 12);

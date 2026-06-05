@@ -3,7 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Bookmark, Menu, Search, Settings, X } from "lucide-react";
+import {
+  BarChart3,
+  BookOpen,
+  Bookmark,
+  Menu,
+  Search,
+  Settings,
+  X,
+} from "lucide-react";
 import { Logo } from "./logo";
 import { cn } from "@/lib/utils";
 import { AuthActions } from "./auth-actions";
@@ -12,6 +20,7 @@ const links = [
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { href: "/outliers", label: "Outlier Finder", icon: Search },
   { href: "/ideas", label: "Saved", icon: Bookmark },
+  { href: "/methodology", label: "Scoring Methodology", icon: BookOpen },
   { href: "/admin", label: "Admin", icon: Settings },
 ];
 

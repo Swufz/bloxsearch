@@ -1,74 +1,8 @@
 import type { Game, GeneratedIdea } from "./types";
-
-type TrendFormula = {
-  growthMechanic: string;
-  inputHook: string;
-  goalFormat: string;
-  theme: string;
-};
+import { analyzeTrendFormula } from "./trend-analysis";
 
 const antiCloningWarning =
   "Use the trend, not the exact game. Change the mechanic, theme, UI, map, name, and economy.";
-
-function has(text: string, words: string[]) {
-  return words.some((word) => text.includes(word));
-}
-
-function extractGrowthMechanic(text: string) {
-  const plusOne = text.match(/\+1\s+([a-z0-9 -]+)/i)?.[1]?.trim();
-  if (plusOne) {
-    const clean = plusOne
-      .split(/[,|:()[\]\n]/)[0]
-      .replace(/\s+/g, " ")
-      .slice(0, 24)
-      .trim();
-    return `+1 ${clean || "Power"}`;
-  }
-  if (has(text, ["speed", "run", "race"])) return "+1 Speed";
-  if (has(text, ["jump", "climb", "tower"])) return "+1 Jump";
-  if (has(text, ["strength", "lift", "punch"])) return "+1 Strength";
-  if (has(text, ["typing", "keyboard"])) return "+1 Typing Power";
-  return "+1 Power";
-}
-
-function extractInputHook(text: string) {
-  if (has(text, ["keyboard", "typing", "type"])) return "Keyboard";
-  if (has(text, ["piano", "music", "rhythm"])) return "Rhythm";
-  if (has(text, ["click", "tap", "button"])) return "Button Mash";
-  if (has(text, ["mouse", "aim"])) return "Mouse Aim";
-  return "Reaction";
-}
-
-function extractGoalFormat(text: string) {
-  if (has(text, ["escape", "obby"])) return "Escape";
-  if (has(text, ["race", "speedrun"])) return "Race";
-  if (has(text, ["tower", "climb"])) return "Climb";
-  if (has(text, ["survive", "survival"])) return "Survive";
-  if (has(text, ["door", "key"])) return "Unlock Doors";
-  return "Reach the Finish";
-}
-
-function extractTheme(text: string, tags: string[]) {
-  if (has(text, ["candy", "chocolate", "sweet"])) return "Candy & Chocolate";
-  if (has(text, ["kitchen", "food", "chef"])) return "Giant Kitchen";
-  if (has(text, ["space", "alien", "planet"])) return "Space Station";
-  if (has(text, ["school", "classroom"])) return "School";
-  if (has(text, ["haunted", "ghost", "horror"])) return "Haunted Arcade";
-  const themeTag = tags.find((tag) => !["roblox", "imported"].includes(tag.toLowerCase()));
-  return themeTag ?? "Toybox World";
-}
-
-function extractTrendFormula(
-  game: Pick<Game, "title" | "description" | "tags" | "niche" | "mechanics">,
-): TrendFormula {
-  const text = `${game.title} ${game.description} ${game.tags.join(" ")} ${game.niche} ${game.mechanics.join(" ")}`.toLowerCase();
-  return {
-    growthMechanic: extractGrowthMechanic(text),
-    inputHook: extractInputHook(text),
-    goalFormat: extractGoalFormat(text),
-    theme: extractTheme(text, game.tags),
-  };
-}
 
 function shiftedTheme(theme: string, index: number) {
   if (theme === "Candy & Chocolate") {
@@ -104,7 +38,7 @@ export function generateIdeas(
     "title" | "description" | "niche" | "mechanics" | "monetizationTags" | "tags"
   >,
 ): GeneratedIdea[] {
-  const formula = extractTrendFormula(game);
+  const formula = analyzeTrendFormula(game);
   const monetization = game.monetizationTags.length
     ? game.monetizationTags
     : ["cosmetics", "boosts", "vip"];
@@ -143,6 +77,15 @@ export function generateIdeas(
           : index === 1
             ? "Needs enough content variety to avoid feeling repetitive after the first session."
             : "Higher scope could slow launch unless the first world is tightly constrained.",
+      dataSignals: [
+        `Based on the current imported dataset, the source game shows the formula ${formula.formulaSummary}.`,
+        `${formula.growthMechanic} and ${formula.goalFormat} are detected from public title, description, tags, and mechanics.`,
+        formula.monetizationSignals.length
+          ? `Monetization clues detected: ${formula.monetizationSignals.join(", ")}.`
+          : "No explicit monetization clues were detected beyond existing tags.",
+        "Needs more similar games imported to confirm trend strength.",
+      ],
+      confidence: formula.confidence === "High" ? "Medium" : formula.confidence,
     };
   });
 }

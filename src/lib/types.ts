@@ -11,6 +11,31 @@ export type ScoreBreakdown = {
   growthEstimated: boolean;
 };
 
+export type ConfidenceLevel = "Low" | "Medium" | "High";
+
+export type TrendAnalysis = {
+  formulaSummary: string;
+  growthMechanic: string;
+  inputHook: string;
+  goalFormat: string;
+  theme: string;
+  socialHook: string;
+  monetizationSignals: string[];
+  confidence: ConfidenceLevel;
+  detectedKeywords: Array<{ keyword: string; category: string }>;
+};
+
+export type ScoreExplanation = {
+  key: Exclude<keyof ScoreBreakdown, "outlierReason" | "risks" | "growthEstimated">;
+  label: string;
+  score: number;
+  why: string[];
+  inputs: string[];
+  formula: string;
+  confidence: ConfidenceLevel;
+  similarGames?: Array<{ id: string; title: string; activePlayers: number }>;
+};
+
 export type GeneratedIdea = {
   title: string;
   concept: string;
@@ -25,6 +50,8 @@ export type GeneratedIdea = {
   potentialScore: number;
   potentialReason: string;
   risk: string;
+  dataSignals: string[];
+  confidence: ConfidenceLevel;
 };
 
 export type Game = {
@@ -57,6 +84,7 @@ export type Game = {
   monetizationTags: string[];
   score: ScoreBreakdown;
   ideas: GeneratedIdea[];
+  snapshotCount?: number;
 };
 
 export type SavedIdea = GeneratedIdea & {

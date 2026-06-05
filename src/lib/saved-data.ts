@@ -134,6 +134,11 @@ export async function getUserSavedIdeas(userId?: string): Promise<SavedIdea[]> {
         row.notes ??
         "Saved from an opportunity signal discovered in BloxSearch.",
       risk: "Validate retention with a small prototype before scaling content.",
+      dataSignals: [
+        "Saved from an opportunity signal discovered in BloxSearch.",
+        "Needs more similar games imported to confirm trend strength.",
+      ],
+      confidence: "Low",
       niche: row.niche ?? "",
       opportunityScore: row.opportunity_score ?? 0,
       notes: row.notes ?? "",

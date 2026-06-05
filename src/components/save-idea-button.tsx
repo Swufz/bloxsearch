@@ -42,7 +42,9 @@ export function SaveIdeaButton({
           difficulty: idea.difficulty,
           monetizationOptions: idea.monetization,
           opportunityScore: idea.potentialScore ?? opportunityScore,
-          notes: idea.potentialReason,
+          notes: [idea.potentialReason, ...(idea.dataSignals ?? [])]
+            .filter(Boolean)
+            .join("\n\n"),
         }),
       });
       const payload = (await response.json().catch(() => ({}))) as {

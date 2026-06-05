@@ -99,6 +99,19 @@ create table if not exists public.data_collection_logs (
   created_at timestamptz default now()
 );
 
+create table if not exists public.keyword_signals (
+  id uuid primary key default gen_random_uuid(),
+  keyword text not null,
+  category text not null,
+  game_id uuid references public.games(id) on delete cascade,
+  active_players integer default 0,
+  visits bigint default 0,
+  like_ratio numeric default 0,
+  created_at_roblox timestamptz,
+  updated_at_roblox timestamptz,
+  captured_at timestamptz default now()
+);
+
 alter table public.profiles enable row level security;
 alter table public.games enable row level security;
 alter table public.game_snapshots enable row level security;
@@ -106,10 +119,12 @@ alter table public.game_scores enable row level security;
 alter table public.saved_games enable row level security;
 alter table public.saved_ideas enable row level security;
 alter table public.data_collection_logs enable row level security;
+alter table public.keyword_signals enable row level security;
 
 create policy "Public game read" on public.games for select using (true);
 create policy "Public snapshot read" on public.game_snapshots for select using (true);
 create policy "Public score read" on public.game_scores for select using (true);
+create policy "Public keyword signal read" on public.keyword_signals for select using (true);
 create policy "Users read own profile" on public.profiles for select using (auth.uid() = id);
 create policy "Users insert own profile" on public.profiles for insert with check (auth.uid() = id);
 create policy "Users update own profile" on public.profiles for update using (auth.uid() = id);
@@ -136,3 +151,6 @@ create index if not exists games_active_players_idx on public.games(active_playe
 create index if not exists games_niche_idx on public.games(niche);
 create index if not exists snapshots_game_captured_idx on public.game_snapshots(game_id, captured_at desc);
 create index if not exists scores_opportunity_idx on public.game_scores(opportunity_score desc);
+create index if not exists keyword_signals_keyword_idx on public.keyword_signals(keyword);
+create index if not exists keyword_signals_category_idx on public.keyword_signals(category);
+create index if not exists keyword_signals_game_idx on public.keyword_signals(game_id);

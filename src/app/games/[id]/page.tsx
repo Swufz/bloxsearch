@@ -32,9 +32,20 @@ export default async function GamePage({
   const game = await getDisplayGame(id);
   if (!game) notFound();
   const demoMode = isMockMode();
-  const similar = (await getDisplayGames())
+  const allGames = await getDisplayGames();
+  const similar = allGames
     .filter((item) => item.id !== game.id && item.niche === game.niche)
     .slice(0, 3);
+  const { analyzeTrendFormula } = await import("@/lib/trend-analysis");
+  const { buildScoreExplanations, getGameResearchMetrics, getWorkingReasons } =
+    await import("@/lib/research-analysis");
+  const trend = analyzeTrendFormula(game);
+  const metrics = getGameResearchMetrics(game);
+  const workingReasons = getWorkingReasons(game, allGames);
+  const scoreExplanations = buildScoreExplanations(game, allGames);
+  const importedRealCount = allGames.filter(
+    (item) => item.dataSource === "real",
+  ).length;
   return (
     <AppShell
       title="Game Analysis"
@@ -104,13 +115,32 @@ export default async function GamePage({
           <div className="space-y-6">
             <section className="card p-6">
               <h2 className="font-semibold">Why this game may be working</h2>
-              <p className="mt-3 text-sm leading-6 text-slate-400">
-                {game.description}
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                Based on public game data and the games currently imported into
+                BloxSearch. This is research guidance, not proof of retention or
+                revenue.
               </p>
-              <div className="mt-5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-sm text-emerald-200">
-                {game.score.outlierReason}
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                {workingReasons.map((reason) => (
+                  <div
+                    key={reason.title}
+                    className="rounded-xl border border-slate-800 bg-slate-900/40 p-4"
+                  >
+                    <p className="text-sm font-semibold text-slate-200">
+                      {reason.title}
+                    </p>
+                    <p className="mt-2 text-xs leading-5 text-slate-400">
+                      {reason.text}
+                    </p>
+                  </div>
+                ))}
               </div>
-              <div className="mt-5 grid gap-4 sm:grid-cols-3">
+              <div className="mt-5 rounded-xl border border-orange-500/20 bg-orange-500/5 p-4 text-xs leading-5 text-orange-100/80">
+                This analysis is based on public game data and the games
+                currently imported into BloxSearch. Import more similar games to
+                improve confidence.
+              </div>
+              <div className="mt-5 grid gap-4 sm:grid-cols-4">
                 <div>
                   <p className="text-xs text-slate-500">Detected niche</p>
                   <p className="mt-1 text-sm font-medium">{game.niche}</p>
@@ -127,6 +157,52 @@ export default async function GamePage({
                     {game.monetizationTags.join(", ")}
                   </p>
                 </div>
+                <div>
+                  <p className="text-xs text-slate-500">Data confidence</p>
+                  <p className="mt-1 text-sm font-medium">
+                    {trend.confidence}
+                  </p>
+                </div>
+              </div>
+            </section>
+            <section className="card p-6">
+              <h2 className="font-semibold">Trend Formula</h2>
+              <p className="mt-2 text-sm text-sky-200">
+                {trend.formulaSummary}
+              </p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  ["Growth mechanic", trend.growthMechanic],
+                  ["Input hook", trend.inputHook],
+                  ["Goal format", trend.goalFormat],
+                  ["Theme", trend.theme],
+                  ["Social hook", trend.socialHook],
+                  [
+                    "Monetization clues",
+                    trend.monetizationSignals.join(", ") || "Not clearly detected",
+                  ],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="rounded-lg border border-slate-800 bg-slate-900/40 p-3"
+                  >
+                    <p className="text-[11px] text-slate-500">{label}</p>
+                    <p className="mt-1 text-sm font-medium text-slate-200">
+                      {value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 rounded-lg border border-slate-800 p-3">
+                <p className="text-xs font-semibold text-slate-300">
+                  Data confidence
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  {trend.confidence} formula confidence from detected keywords.
+                  Imported real games: {importedRealCount}. Snapshot count for
+                  this game: {game.snapshotCount ?? 1}. Growth is estimated when
+                  only one snapshot exists.
+                </p>
               </div>
             </section>
             <section className="card p-6">
@@ -178,7 +254,31 @@ export default async function GamePage({
                 <h2 className="font-semibold">Opportunity score</h2>
                 <ScoreBadge score={game.score.opportunity} />
               </div>
-              <OpportunityBreakdown score={game.score} />
+              <OpportunityBreakdown
+                score={game.score}
+                explanations={scoreExplanations}
+              />
+            </section>
+            <section className="card p-6">
+              <h2 className="font-semibold">Research metrics</h2>
+              <div className="mt-4 space-y-3 text-xs text-slate-400">
+                <p>
+                  Active players per million visits:{" "}
+                  <strong className="text-slate-200">
+                    {formatNumber(metrics.activePerMillionVisits)}
+                  </strong>
+                </p>
+                <p>
+                  Estimated visits per day:{" "}
+                  <strong className="text-slate-200">
+                    {formatNumber(metrics.visitsPerDay)}
+                  </strong>
+                </p>
+                <p>
+                  Created {metrics.ageDays} days ago; updated{" "}
+                  {metrics.updatedDaysAgo} days ago.
+                </p>
+              </div>
             </section>
             <section className="card p-6">
               <h2 className="font-semibold">Risks</h2>

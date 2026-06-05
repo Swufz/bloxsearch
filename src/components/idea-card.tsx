@@ -25,6 +25,7 @@ export function IdeaCard({
   const differentFromOriginal =
     idea.differentFromOriginal ??
     "Change the progression, theme, layout, UI, name, and economy before prototyping.";
+  const dataSignals = idea.dataSignals ?? [];
 
   return (
     <div className="card p-5">
@@ -43,6 +44,11 @@ export function IdeaCard({
           <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200">
             Potential {Math.round(potentialScore)}
           </span>
+          {idea.confidence && (
+            <span className="rounded-full border border-slate-700 px-2.5 py-1 text-[11px] text-slate-300">
+              {idea.confidence} confidence
+            </span>
+          )}
         </div>
       </div>
       <p className="mt-3 text-sm leading-6 text-slate-400">{idea.concept}</p>
@@ -67,6 +73,16 @@ export function IdeaCard({
           <p>
             <strong className="text-slate-200">Risk:</strong> {idea.risk}
           </p>
+        )}
+        {dataSignals.length > 0 && (
+          <div>
+            <strong className="text-slate-200">Data signals used:</strong>
+            <ul className="mt-1 list-disc space-y-1 pl-4">
+              {dataSignals.map((signal) => (
+                <li key={signal}>{signal}</li>
+              ))}
+            </ul>
+          </div>
         )}
         <p>
           <strong className="text-slate-200">Scope:</strong> {idea.buildScope}

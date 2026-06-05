@@ -3,6 +3,9 @@ import { isAdminRequest } from "@/lib/admin";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 import { importRobloxGameFromInput } from "@/lib/roblox";
+import { analyzeTrendFormula } from "@/lib/trend-analysis";
+import { generateIdeas } from "@/lib/idea-generator";
+import { scoreGame } from "@/lib/scoring";
 
 export async function POST(request: Request) {
   if (!(await isAdminRequest()))
@@ -59,6 +62,32 @@ export async function POST(request: Request) {
     }
 
     const game = imported.game;
+    const trend = analyzeTrendFormula(game);
+    const { data: competitionRows } = await admin
+      .from("games")
+      .select("id, title, active_players, tags, niche, mechanics, monetization_tags, description")
+      .neq("roblox_universe_id", imported.universeId);
+    const similarActivePlayers = (competitionRows ?? [])
+      .filter((row) => {
+        const rowTrend = analyzeTrendFormula({
+          title: String(row.title ?? ""),
+          description: String(row.description ?? ""),
+          tags: Array.isArray(row.tags) ? row.tags : [],
+          niche: String(row.niche ?? "Roblox"),
+          mechanics: Array.isArray(row.mechanics) ? row.mechanics : [],
+          monetizationTags: Array.isArray(row.monetization_tags)
+            ? row.monetization_tags
+            : [],
+        });
+        return (
+          rowTrend.growthMechanic === trend.growthMechanic ||
+          rowTrend.goalFormat === trend.goalFormat ||
+          rowTrend.theme === trend.theme
+        );
+      })
+      .map((row) => Number(row.active_players ?? 0));
+    game.score = scoreGame(game, Math.max(similarActivePlayers.length, 1), similarActivePlayers);
+    game.ideas = generateIdeas(game);
     const { data: savedGame, error: gameError } = await admin
       .from("games")
       .upsert(
@@ -95,6 +124,39 @@ export async function POST(request: Request) {
 
     if (gameError || !savedGame)
       throw gameError ?? new Error("Game was not saved.");
+
+    const { error: keywordDeleteError } = await admin
+      .from("keyword_signals")
+      .delete()
+      .eq("game_id", savedGame.id);
+    if (keywordDeleteError) {
+      console.error("[admin/import-roblox-game] Keyword signal delete failed", {
+        gameId: savedGame.id,
+        error: keywordDeleteError,
+      });
+    }
+    if (trend.detectedKeywords.length) {
+      const { error: keywordError } = await admin
+        .from("keyword_signals")
+        .insert(
+          trend.detectedKeywords.map((signal) => ({
+            keyword: signal.keyword,
+            category: signal.category,
+            game_id: savedGame.id,
+            active_players: game.activePlayers,
+            visits: game.visits,
+            like_ratio: game.likeRatio,
+            created_at_roblox: game.createdAtRoblox,
+            updated_at_roblox: game.updatedAtRoblox,
+          })),
+        );
+      if (keywordError) {
+        console.error("[admin/import-roblox-game] Keyword signal insert failed", {
+          gameId: savedGame.id,
+          error: keywordError,
+        });
+      }
+    }
 
     await admin.from("game_snapshots").insert({
       game_id: savedGame.id,
@@ -134,6 +196,7 @@ export async function POST(request: Request) {
         gameId: savedGame.id,
         votes: imported.votes,
         forced: Boolean(body.force),
+        trend: trend.formulaSummary,
       },
     });
 
