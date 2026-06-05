@@ -39,6 +39,7 @@ type DatabaseGameRow = {
   last_fetched_at: string | null;
   tags: string[] | null;
   niche: string | null;
+  source_keyword?: string | null;
   genre?: string | null;
   subgenre?: string | null;
   mechanics: string[] | null;
@@ -71,6 +72,10 @@ type DatabaseGameRow = {
     | null;
   roblox_game_metrics?: Record<string, unknown> | Record<string, unknown>[] | null;
   roblox_game_snapshots?: Array<{ id: string; captured_at?: string | null }> | null;
+  tracked_games?:
+    | { tracking_enabled: boolean | null }
+    | Array<{ tracking_enabled: boolean | null }>
+    | null;
 };
 
 export function mapDatabaseGame(row: DatabaseGameRow): Game {
@@ -81,6 +86,10 @@ export function mapDatabaseGame(row: DatabaseGameRow): Game {
     id: row.id,
     databaseId: row.id,
     dataSource: "real" as const,
+    sourceKeyword: row.source_keyword ?? null,
+    trackingEnabled: Array.isArray(row.tracked_games)
+      ? Boolean(row.tracked_games[0]?.tracking_enabled)
+      : Boolean(row.tracked_games?.tracking_enabled),
     robloxUniverseId: row.roblox_universe_id ?? "",
     robloxPlaceId: row.roblox_place_id ?? "",
     title: row.title,
@@ -164,7 +173,7 @@ export async function getImportedGames(): Promise<Game[]> {
   const { data, error } = await supabase
     .from("games")
     .select(
-      "*, game_scores(opportunity_score, demand_score, growth_score, competition_score, freshness_score, buildability_score, monetization_score, outlier_reason, risks, generated_ideas), roblox_game_metrics(*), roblox_game_snapshots(id, captured_at)",
+      "*, game_scores(opportunity_score, demand_score, growth_score, competition_score, freshness_score, buildability_score, monetization_score, outlier_reason, risks, generated_ideas), roblox_game_metrics(*), roblox_game_snapshots(id, captured_at), tracked_games(tracking_enabled)",
     )
     .order("last_fetched_at", { ascending: false });
   if (error) {
@@ -197,7 +206,7 @@ export async function getDisplayGame(id: string): Promise<Game | undefined> {
   const { data } = await supabase
     .from("games")
     .select(
-      "*, game_scores(opportunity_score, demand_score, growth_score, competition_score, freshness_score, buildability_score, monetization_score, outlier_reason, risks, generated_ideas), roblox_game_metrics(*), roblox_game_snapshots(id, captured_at)",
+      "*, game_scores(opportunity_score, demand_score, growth_score, competition_score, freshness_score, buildability_score, monetization_score, outlier_reason, risks, generated_ideas), roblox_game_metrics(*), roblox_game_snapshots(id, captured_at), tracked_games(tracking_enabled)",
     )
     .or(`id.eq.${id},roblox_universe_id.eq.${id},roblox_place_id.eq.${id}`)
     .maybeSingle();

@@ -8,6 +8,7 @@ import {
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { AdminActions } from "@/components/admin-actions";
+import { DiscoveryAdminPanel } from "@/components/discovery-admin-panel";
 import { ImportRobloxGameForm } from "@/components/import-roblox-game-form";
 import { TrackingAdminPanel } from "@/components/tracking-admin-panel";
 import { getCurrentUser } from "@/lib/auth";
@@ -122,6 +123,7 @@ export default async function AdminPage() {
             ))}
           </div>
         </section>
+        <DiscoveryAdminPanel />
         <TrackingAdminPanel
           games={trackingSummary.games}
           stats={trackingSummary.stats}

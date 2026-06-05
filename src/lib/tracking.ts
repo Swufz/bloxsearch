@@ -30,8 +30,8 @@ type TrackingRow = {
   next_snapshot_at: string | null;
 };
 
-function addMinutes(minutes: number) {
-  return new Date(Date.now() + minutes * 60_000).toISOString();
+function addMinutes(minutes: number, from = new Date()) {
+  return new Date(from.getTime() + minutes * 60_000).toISOString();
 }
 
 function metricToDb(
@@ -112,10 +112,14 @@ async function getGameRow(gameId: string) {
   return data as GameRow;
 }
 
-export async function enableTrackingForGame(gameId: string) {
+export async function enableTrackingForGame(
+  gameId: string,
+  options: { lastSnapshotAt?: string | null; intervalMinutes?: number } = {},
+) {
   const admin = createSupabaseAdminClient();
   const game = await getGameRow(gameId);
   const now = new Date().toISOString();
+  const interval = options.intervalMinutes ?? 15;
   const { data, error } = await admin
     .from("tracked_games")
     .upsert(
@@ -124,8 +128,9 @@ export async function enableTrackingForGame(gameId: string) {
         roblox_universe_id: game.roblox_universe_id,
         roblox_place_id: game.roblox_place_id,
         tracking_enabled: true,
-        tracking_interval_minutes: 15,
-        next_snapshot_at: now,
+        tracking_interval_minutes: interval,
+        last_snapshot_at: options.lastSnapshotAt ?? undefined,
+        next_snapshot_at: addMinutes(interval),
         updated_at: now,
       },
       { onConflict: "roblox_universe_id" },
@@ -345,6 +350,45 @@ export async function collectSnapshotsForDueGames(limit = 5) {
     }
   }
   return results;
+}
+
+export async function forceCollectSnapshotsForEnabledGames() {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("tracked_games")
+    .select("game_id, tracking_enabled");
+  if (error) throw error;
+
+  const allRows = data ?? [];
+  const rows = allRows.filter((row) => row.tracking_enabled);
+  const failures: Array<{ gameId: string; error: string }> = [];
+  let snapshotsCollected = 0;
+
+  for (const row of rows) {
+    try {
+      await collectSnapshotForGame(row.game_id);
+      snapshotsCollected += 1;
+    } catch (error) {
+      failures.push({
+        gameId: row.game_id,
+        error: error instanceof Error ? error.message : "Snapshot failed",
+      });
+      if (
+        error instanceof Error &&
+        error.message.toLowerCase().includes("rate limited")
+      ) {
+        break;
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  return {
+    gamesChecked: allRows.length,
+    snapshotsCollected,
+    failures,
+    skippedGames: allRows.length - rows.length,
+  };
 }
 
 export async function calculateMetricsForAllTrackedGames() {

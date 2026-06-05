@@ -65,6 +65,11 @@ export function TrackingAdminPanel({
             Metrics like Avg Session require at least 2 snapshots and become
             more accurate after 24h+ of tracking.
           </p>
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            Due snapshots only runs games whose next scheduled snapshot time has
+            arrived. Force collect ignores the schedule and is useful for
+            testing.
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -73,6 +78,13 @@ export function TrackingAdminPanel({
             className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-60"
           >
             Collect due snapshots
+          </button>
+          <button
+            onClick={() => post("/api/admin/force-collect-snapshots")}
+            disabled={Boolean(loading)}
+            className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-60"
+          >
+            Force collect all enabled games
           </button>
           <button
             onClick={() => post("/api/admin/calculate-metrics")}

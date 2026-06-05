@@ -6,6 +6,7 @@ import { importRobloxGameFromInput } from "@/lib/roblox";
 import { analyzeTrendFormula } from "@/lib/trend-analysis";
 import { generateIdeas } from "@/lib/idea-generator";
 import { scoreGame } from "@/lib/scoring";
+import { calculateMetricsForGame, enableTrackingForGame } from "@/lib/tracking";
 
 export async function POST(request: Request) {
   if (!(await isAdminRequest()))
@@ -40,10 +41,12 @@ export async function POST(request: Request) {
 
     if (
       !body.force &&
+      existing.data?.id &&
       existing.data?.last_fetched_at &&
       Date.now() - new Date(existing.data.last_fetched_at).getTime() <
         10 * 60 * 1000
     ) {
+      await enableTrackingForGame(existing.data.id);
       await admin.from("data_collection_logs").insert({
         action: "import_roblox_game",
         status: "success",
@@ -52,6 +55,7 @@ export async function POST(request: Request) {
           placeId: imported.placeId,
           universeId: imported.universeId,
           cached: true,
+          trackingEnabled: true,
         },
       });
       return NextResponse.json({
@@ -62,6 +66,8 @@ export async function POST(request: Request) {
     }
 
     const game = imported.game;
+    const now = new Date();
+    const nowIso = now.toISOString();
     const trend = analyzeTrendFormula(game);
     const { data: competitionRows } = await admin
       .from("games")
@@ -110,7 +116,7 @@ export async function POST(request: Request) {
           max_players: game.maxPlayers,
           created_at_roblox: game.createdAtRoblox,
           updated_at_roblox: game.updatedAtRoblox,
-          last_fetched_at: new Date().toISOString(),
+          last_fetched_at: nowIso,
           tags: game.tags,
           niche: game.niche,
           genre: game.genre,
@@ -170,7 +176,29 @@ export async function POST(request: Request) {
       upvotes: game.upvotes,
       downvotes: game.downvotes,
       like_ratio: game.likeRatio,
+      captured_at: nowIso,
     });
+
+    await admin.from("roblox_game_snapshots").insert({
+      game_id: savedGame.id,
+      roblox_universe_id: game.robloxUniverseId,
+      roblox_place_id: game.robloxPlaceId || imported.placeId,
+      title: game.title,
+      active_players: game.activePlayers,
+      visits: game.visits,
+      favorites: game.favorites,
+      upvotes: game.upvotes,
+      downvotes: game.downvotes,
+      like_ratio: game.likeRatio,
+      genre: game.genre,
+      subgenre: game.subgenre,
+      created_at_roblox: game.createdAtRoblox,
+      updated_at_roblox: game.updatedAtRoblox,
+      captured_at: nowIso,
+    });
+
+    await enableTrackingForGame(savedGame.id, { lastSnapshotAt: nowIso });
+    await calculateMetricsForGame(savedGame.id).catch(() => null);
 
     const { error: scoreError } = await admin.from("game_scores").upsert(
       {
@@ -200,6 +228,7 @@ export async function POST(request: Request) {
         gameId: savedGame.id,
         votes: imported.votes,
         forced: Boolean(body.force),
+        trackingEnabled: true,
         trend: trend.formulaSummary,
       },
     });

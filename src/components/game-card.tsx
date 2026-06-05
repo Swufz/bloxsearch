@@ -50,6 +50,11 @@ export const GameCard = memo(function GameCard({
           >
             {game.dataSource === "real" ? "Real Roblox Data" : "Demo Data"}
           </span>
+          {game.sourceKeyword && (
+            <span className="ml-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[11px] font-medium text-sky-300">
+              Imported from: {game.sourceKeyword}
+            </span>
+          )}
         </div>
         <div className="mb-3">
           <h3 className="truncate font-semibold">{game.title}</h3>

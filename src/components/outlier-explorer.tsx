@@ -23,6 +23,9 @@ export function OutlierExplorer({
   const [updatedWithin, setUpdatedWithin] = useState("");
   const [niche, setNiche] = useState("");
   const [monetization, setMonetization] = useState("");
+  const [dataSource, setDataSource] = useState("");
+  const [sourceKeyword, setSourceKeyword] = useState("");
+  const [trackingStatus, setTrackingStatus] = useState("");
   const [sort, setSort] = useState("opportunity");
 
   useEffect(() => {
@@ -32,6 +35,15 @@ export function OutlierExplorer({
 
   const niches = useMemo(
     () => [...new Set(initialGames.map((game) => game.niche))].sort(),
+    [initialGames],
+  );
+  const sourceKeywords = useMemo(
+    () =>
+      [
+        ...new Set(
+          initialGames.map((game) => game.sourceKeyword).filter(Boolean),
+        ),
+      ].sort() as string[],
     [initialGames],
   );
 
@@ -49,7 +61,13 @@ export function OutlierExplorer({
         (!updatedWithin ||
           daysAgo(game.updatedAtRoblox) <= Number(updatedWithin)) &&
         (!niche || game.niche === niche) &&
-        (!monetization || game.monetizationTags.includes(monetization)),
+        (!monetization || game.monetizationTags.includes(monetization)) &&
+        (!dataSource || game.dataSource === dataSource) &&
+        (!sourceKeyword || game.sourceKeyword === sourceKeyword) &&
+        (!trackingStatus ||
+          (trackingStatus === "enabled"
+            ? game.trackingEnabled
+            : !game.trackingEnabled)),
     );
     return [...filtered].sort((a, b) =>
       sort === "active"
@@ -75,6 +93,9 @@ export function OutlierExplorer({
     updatedWithin,
     niche,
     monetization,
+    dataSource,
+    sourceKeyword,
+    trackingStatus,
     sort,
   ]);
 
@@ -166,6 +187,36 @@ export function OutlierExplorer({
             <option value="boosts">Boosts</option>
             <option value="vip">VIP</option>
             <option value="cosmetics">Cosmetics</option>
+          </select>
+          <select
+            value={dataSource}
+            onChange={(e) => setDataSource(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">All data sources</option>
+            <option value="real">Real Roblox Data</option>
+            <option value="mock">Demo Data</option>
+          </select>
+          <select
+            value={sourceKeyword}
+            onChange={(e) => setSourceKeyword(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">All source keywords</option>
+            {sourceKeywords.map((keyword) => (
+              <option key={keyword} value={keyword}>
+                {keyword}
+              </option>
+            ))}
+          </select>
+          <select
+            value={trackingStatus}
+            onChange={(e) => setTrackingStatus(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">All tracking status</option>
+            <option value="enabled">Tracking enabled</option>
+            <option value="disabled">Not tracking</option>
           </select>
           <select
             value={sort}
