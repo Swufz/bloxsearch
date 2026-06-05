@@ -10,64 +10,10 @@ import {
   Users,
 } from "lucide-react";
 import type { Game } from "@/lib/types";
-import { analyzeTrendFormula } from "@/lib/trend-analysis";
+import { getResearchTagsForGame } from "@/lib/card-tags";
 import { daysAgo, formatNumber } from "@/lib/utils";
 import { ScoreBadge } from "./score-badge";
 import { SaveGameButton } from "./save-game-button";
-
-function shortTag(label: string) {
-  const normalized = label
-    .replace(/^cluster:\s*/i, "")
-    .replace(/^imported from:\s*/i, "")
-    .replace(/low competition opportunity/i, "low comp")
-    .replace(/high momentum trend/i, "momentum")
-    .replace(/top games/i, "top game")
-    .trim()
-    .toLowerCase();
-  if (normalized.length <= 14) return normalized;
-  return normalized
-    .replace("simulator", "sim")
-    .replace("competition", "comp")
-    .replace("collection", "collect")
-    .replace("keyboard", "keys")
-    .slice(0, 14)
-    .trim();
-}
-
-function addUnique(tags: string[], value?: string | null) {
-  if (!value) return;
-  const tag = shortTag(value);
-  if (!tag || tag.includes("imported from") || tags.includes(tag)) return;
-  tags.push(tag);
-}
-
-function getResearchTags(game: Game) {
-  const trend = analyzeTrendFormula(game);
-  const tags: string[] = [];
-  addUnique(tags, trend.growthMechanic);
-  addUnique(tags, trend.goalFormat);
-  addUnique(tags, trend.theme);
-  addUnique(tags, trend.inputHook === "general input" ? null : trend.inputHook);
-
-  if (game.metrics?.momentum1d && game.metrics.momentum1d >= 15) {
-    addUnique(tags, "momentum");
-  }
-  if (game.score.competition >= 70) addUnique(tags, "low comp");
-  if (game.discoverySource === "top_games") addUnique(tags, "top game");
-  if (game.discoverySource === "trending") addUnique(tags, "trending");
-  if (game.discoverySource === "popular") addUnique(tags, "popular");
-
-  for (const fallback of [
-    game.niche,
-    ...game.mechanics,
-    ...game.tags,
-    ...game.monetizationTags,
-  ]) {
-    if (tags.length >= 4) break;
-    addUnique(tags, fallback);
-  }
-  return tags.slice(0, 4);
-}
 
 export const GameCard = memo(function GameCard({
   game,
@@ -82,7 +28,7 @@ export const GameCard = memo(function GameCard({
     game.metrics?.avgSession1d ?? game.metrics?.avgSession7d ?? null;
   const avgCcu = game.metrics?.avgCcu1d ?? null;
   const momentum = game.metrics?.momentum1d ?? game.metrics?.momentum7d ?? null;
-  const researchTags = getResearchTags(game);
+  const researchTags = getResearchTagsForGame(game);
   return (
     <article className="card overflow-hidden transition hover:-translate-y-0.5 hover:border-slate-600">
       <div className="relative aspect-video overflow-hidden bg-slate-900">
@@ -101,13 +47,6 @@ export const GameCard = memo(function GameCard({
         </div>
       </div>
       <div className="p-4">
-        <div className="mb-3">
-          <span
-            className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${game.dataSource === "real" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-slate-700 bg-slate-800 text-slate-300"}`}
-          >
-            {game.dataSource === "real" ? "Real Roblox Data" : "Demo Data"}
-          </span>
-        </div>
         <div className="mb-3">
           <h3 className="truncate font-semibold">{game.title}</h3>
           <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
