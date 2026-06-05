@@ -5,6 +5,20 @@ import { discoverAndPreviewGames } from "@/lib/roblox";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 
+type DiscoveryResponseRow = {
+  id?: string;
+  discovery_run_id: string;
+  roblox_universe_id: string;
+  roblox_place_id: string;
+  title: string;
+  creator_name: string;
+  active_players: number;
+  visits: number;
+  thumbnail_url: string | null;
+  source_keyword: string;
+  already_imported: boolean;
+};
+
 function safeLimit(value: unknown) {
   const parsed = Number(value ?? 25);
   if (!Number.isFinite(parsed)) return 25;
@@ -74,11 +88,16 @@ export async function POST(request: Request) {
       already_imported: existingIds.has(result.universeId),
       raw_data: result.raw,
     }));
+    let insertedRows: DiscoveryResponseRow[] = rows;
     if (rows.length) {
-      const { error: insertError } = await admin
+      const { data: inserted, error: insertError } = await admin
         .from("discovered_games")
-        .insert(rows);
+        .insert(rows)
+        .select(
+          "id, discovery_run_id, roblox_universe_id, roblox_place_id, title, creator_name, active_players, visits, thumbnail_url, source_keyword, already_imported",
+        );
       if (insertError) throw insertError;
+      insertedRows = inserted ?? rows;
     }
 
     const { error: updateError } = await admin
@@ -93,7 +112,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       discoveryRunId: run.id,
-      results: rows,
+      results: insertedRows,
     });
   } catch (error) {
     const message = safeError(error);

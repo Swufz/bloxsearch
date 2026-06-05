@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "./toast";
 
 type DiscoveryResult = {
@@ -32,22 +32,44 @@ export function DiscoveryAdminPanel() {
   const [limit, setLimit] = useState("25");
   const [runId, setRunId] = useState<string | null>(null);
   const [results, setResults] = useState<DiscoveryResult[]>([]);
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selectedGameIds, setSelectedGameIds] = useState<string[]>([]);
   const [loading, setLoading] = useState<"discover" | "import" | null>(null);
   const [error, setError] = useState("");
+  const selectAllRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
 
-  const selectedCount = selected.length;
-  const allIds = useMemo(
-    () => results.map((result) => result.id).filter((id): id is string => Boolean(id)),
+  const selectedCount = selectedGameIds.length;
+  const selectableIds = useMemo(
+    () =>
+      results
+        .filter((result) => !(result.already_imported ?? result.alreadyImported))
+        .map((result) => result.id)
+        .filter((id): id is string => Boolean(id)),
     [results],
   );
+  const allSelectableSelected =
+    selectableIds.length > 0 &&
+    selectableIds.every((id) => selectedGameIds.includes(id));
+  const someSelectableSelected =
+    selectedGameIds.length > 0 && !allSelectableSelected;
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someSelectableSelected;
+    }
+  }, [someSelectableSelected]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.log("[discovery] selected IDs", selectedGameIds);
+    }
+  }, [selectedGameIds]);
 
   async function discover() {
     setLoading("discover");
     setError("");
     setResults([]);
-    setSelected([]);
+    setSelectedGameIds([]);
     try {
       const response = await fetch("/api/admin/discover-games", {
         method: "POST",
@@ -62,6 +84,9 @@ export function DiscoveryAdminPanel() {
       if (!response.ok) throw new Error(payload.error ?? "Discovery failed");
       setRunId(payload.discoveryRunId ?? null);
       setResults(payload.results ?? []);
+      if (process.env.NODE_ENV === "development") {
+        console.log("[discovery] results count", (payload.results ?? []).length);
+      }
       showToast(`Discovered ${(payload.results ?? []).length} games`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Discovery failed";
@@ -74,17 +99,21 @@ export function DiscoveryAdminPanel() {
 
   async function importGames(ids: string[], enableTracking = true) {
     if (!runId || !ids.length) return;
+    const payloadBody = {
+      discoveryRunId: runId,
+      gameIds: ids,
+      enableTracking,
+    };
+    if (process.env.NODE_ENV === "development") {
+      console.log("[discovery] import payload", payloadBody);
+    }
     setLoading("import");
     setError("");
     try {
       const response = await fetch("/api/admin/import-discovered-games", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          discoveryRunId: runId,
-          gameIds: ids,
-          enableTracking,
-        }),
+        body: JSON.stringify(payloadBody),
       });
       const payload = (await response.json().catch(() => ({}))) as {
         importedCount?: number;
@@ -95,6 +124,7 @@ export function DiscoveryAdminPanel() {
         const failure = payload.failures?.[0]?.error;
         throw new Error(payload.error ?? failure ?? "Import failed");
       }
+      const failedCount = payload.failures?.length ?? 0;
       setResults((items) =>
         items.map((item) =>
           item.id && ids.includes(item.id)
@@ -102,8 +132,12 @@ export function DiscoveryAdminPanel() {
             : item,
         ),
       );
-      setSelected([]);
-      showToast(`Imported ${payload.importedCount ?? 0} games`);
+      setSelectedGameIds([]);
+      showToast(
+        failedCount
+          ? `Imported ${payload.importedCount ?? 0} games, ${failedCount} failed.`
+          : `Imported ${payload.importedCount ?? 0} games.`,
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Import failed";
       setError(message);
@@ -114,9 +148,13 @@ export function DiscoveryAdminPanel() {
   }
 
   function toggle(id: string) {
-    setSelected((items) =>
+    setSelectedGameIds((items) =>
       items.includes(id) ? items.filter((item) => item !== id) : [...items, id],
     );
+  }
+
+  function toggleAll() {
+    setSelectedGameIds(allSelectableSelected ? [] : selectableIds);
   }
 
   return (
@@ -152,21 +190,21 @@ export function DiscoveryAdminPanel() {
         </div>
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => importGames(selected)}
+            onClick={() => importGames(selectedGameIds)}
             disabled={loading !== null || !selectedCount}
             className="rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-60"
           >
             Import selected
           </button>
           <button
-            onClick={() => importGames(allIds)}
-            disabled={loading !== null || !allIds.length}
+            onClick={() => importGames(selectableIds)}
+            disabled={loading !== null || !selectableIds.length}
             className="rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-60"
           >
             Import all
           </button>
           <button
-            onClick={() => importGames(selected, true)}
+            onClick={() => importGames(selectedGameIds, true)}
             disabled={loading !== null || !selectedCount}
             className="rounded-lg bg-sky-400 px-3 py-2 text-xs font-semibold text-slate-950 hover:bg-sky-300 disabled:opacity-60"
           >
@@ -176,11 +214,30 @@ export function DiscoveryAdminPanel() {
       </div>
       {error && <p className="mt-3 text-xs text-red-300">{error}</p>}
       {results.length ? (
-        <div className="mt-5 overflow-x-auto">
+        <div className="mt-5">
+          <div className="mb-3 flex flex-col gap-1 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+            <p>Selected: {selectedCount}</p>
+            {!selectableIds.length && (
+              <p className="text-amber-300">
+                All discovered games are already imported. No new games to
+                import from this search.
+              </p>
+            )}
+          </div>
+          <div className="overflow-x-auto">
           <table className="min-w-full text-left text-xs">
             <thead className="text-slate-500">
               <tr>
-                <th className="px-2 py-2">Select</th>
+                <th className="px-2 py-2">
+                  <input
+                    ref={selectAllRef}
+                    type="checkbox"
+                    checked={allSelectableSelected}
+                    disabled={!selectableIds.length}
+                    onChange={toggleAll}
+                    aria-label="Select all non-imported discovered games"
+                  />
+                </th>
                 <th className="px-2 py-2">Game</th>
                 <th className="px-2 py-2">Creator</th>
                 <th className="px-2 py-2">Active</th>
@@ -193,14 +250,16 @@ export function DiscoveryAdminPanel() {
               {results.map((result) => {
                 const id = result.id ?? "";
                 const imported = result.already_imported ?? result.alreadyImported;
+                const selectable = Boolean(id && !imported);
                 return (
                   <tr key={id || result.roblox_universe_id} className="border-t border-slate-800">
                     <td className="px-2 py-3">
                       <input
                         type="checkbox"
-                        checked={Boolean(id && selected.includes(id))}
-                        disabled={!id}
+                        checked={Boolean(id && selectedGameIds.includes(id))}
+                        disabled={!selectable}
                         onChange={() => id && toggle(id)}
+                        aria-label={`Select ${result.title ?? "discovered game"}`}
                       />
                     </td>
                     <td className="px-2 py-3">
@@ -249,6 +308,7 @@ export function DiscoveryAdminPanel() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       ) : null}
     </section>
